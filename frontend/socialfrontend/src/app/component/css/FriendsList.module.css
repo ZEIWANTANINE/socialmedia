@@ -1,0 +1,23 @@
+/* FriendsList.module.css */
+.friendsList {
+  width: 250px; /* Increased width */
+  padding: 1rem;
+  background-color: #f1f8e9; /* Light green background */
+  border-left: 1px solid #ccc;
+}
+
+.friendsList h2 {
+  font-size: 1.5rem;
+  color: #2e7d32; /* Dark green */
+}
+
+.friendsList ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.friendsList li {
+  margin-bottom: 0.5rem;
+  font-size: 1.2rem;
+  color: #2e7d32; /* Dark green */
+}

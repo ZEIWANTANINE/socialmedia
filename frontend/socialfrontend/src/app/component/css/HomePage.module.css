@@ -1,0 +1,72 @@
+/* HomePage.module.css */
+.homeContainer {
+  display: flex;
+  justify-content: center; /* Center the entire page */
+  padding: 20px;
+  background-color: #f0f2f5; /* Light grey background */
+}
+
+.leftSidebar, .rightSidebar {
+  width: 250px;
+  background-color: #fff;
+  padding: 20px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  margin: 0 20px; /* Add margin to separate from main content */
+}
+
+.leftSidebar h2, .rightSidebar h2 {
+  font-size: 1.5rem;
+  color: #2e7d32; /* Dark green */
+}
+
+.leftSidebar ul, .rightSidebar ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.leftSidebar li, .rightSidebar li {
+  margin-bottom: 10px;
+  font-size: 1.2rem;
+  color: #2e7d32; /* Dark green */
+}
+
+.mainContent {
+  flex-grow: 1;
+  max-width: 600px; /* Center posts */
+  margin: 0 20px; /* Add margin to separate from sidebars */
+}
+
+.home {
+  flex-grow: 1;
+  text-align: center;
+  font-size: 2rem;
+  color: #2e7d32; /* Dark green */
+  max-width: 600px; /* Center posts */
+  margin: 0 auto; /* Center posts */
+}
+
+.post {
+  background-color: #fff;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  text-align: left;
+}
+
+.postActions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.postActions button {
+  background-color: #a5d6a7; /* Light green */
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+  color: #fff;
+}
+
+.postActions button:hover {
+  background-color: #81c784; /* Medium green */
+}

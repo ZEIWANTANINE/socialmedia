@@ -1,0 +1,21 @@
+/* ChatPage.module.css */
+.chatContainer {
+  display: flex;
+  justify-content: center; /* Center the entire page */
+  padding: 20px;
+  background-color: #f0f2f5; /* Light grey background */
+}
+
+.chat {
+  text-align: center;
+  font-size: 2rem;
+  color: #2e7d32; /* Dark green */
+  flex-grow: 1;
+  padding: 2rem;
+}
+
+.chatBox {
+  border: 1px solid #ccc;
+  padding: 1rem;
+  background-color: #fff;
+}
