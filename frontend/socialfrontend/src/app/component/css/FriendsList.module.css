@@ -3,7 +3,8 @@
   width: 250px; /* Increased width */
   padding: 1rem;
   background-color: #f1f8e9; /* Light green background */
-  border-left: 1px solid #ccc;
+  border-right: 1px solid #ccc;
+  overflow-y: auto;
 }
 
 .friendsList h2 {
@@ -20,4 +21,15 @@
   margin-bottom: 0.5rem;
   font-size: 1.2rem;
   color: #2e7d32; /* Dark green */
+  cursor: pointer;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.friendsList li:hover {
+  background-color: #e0e0e0;
+}
+
+.selectedFriend {
+  background-color: #a5d6a7; /* Light green */
 }

@@ -7,11 +7,11 @@
 }
 
 .leftSidebar, .rightSidebar {
-  width: 250px;
+  width: 350px;
   background-color: #fff;
   padding: 20px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  margin: 0 20px; /* Add margin to separate from main content */
+  margin-left: 100px; /* Add margin to separate from main content */
 }
 
 .leftSidebar h2, .rightSidebar h2 {
@@ -32,7 +32,7 @@
 
 .mainContent {
   flex-grow: 1;
-  max-width: 600px; /* Center posts */
+  max-width: 900px; /* Center posts */
   margin: 0 20px; /* Add margin to separate from sidebars */
 }
 
@@ -41,8 +41,35 @@
   text-align: center;
   font-size: 2rem;
   color: #2e7d32; /* Dark green */
-  max-width: 600px; /* Center posts */
+  max-width: 800px; /* Center posts */
   margin: 0 auto; /* Center posts */
+}
+
+.newPostForm {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20px;
+}
+
+.newPostInput {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.newPostButton {
+  background-color: #2e7d32; /* Dark green */
+  color: #fff;
+  border: none;
+  padding: 10px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.newPostButton:hover {
+  background-color: #81c784; /* Medium green */
 }
 
 .post {

@@ -18,11 +18,17 @@ const FriendsPage: React.FC = () => {
         onChange={(e) => setSearchTerm(e.target.value)}
         className={styles.searchBar}
       />
-      <ul className={styles.friendsList}>
+      <div className={styles.friendsList}>
         {filteredFriends.map((friend, index) => (
-          <li key={index}>{friend}</li>
+          <div key={index} className={styles.friendCard}>
+            <div className={styles.friendAvatar}></div>
+            <div className={styles.friendInfo}>
+              <h3>{friend}</h3>
+              <button className={styles.addFriendButton}>Add Friend</button>
+            </div>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   );
 };

@@ -4,6 +4,64 @@
   justify-content: center; /* Center the entire page */
 }
 
+.topNav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #2e7d32; /* Dark green */
+  padding: 1rem;
+  height: 100px;
+}
+
+.searchBar {
+  flex-grow: 0.3;
+  margin-right: 1rem;
+  padding: 0.5rem;
+  width: 100px;
+  height: 50px;
+  border-radius: 20px; /* Added border-radius */
+}
+
+.centerNav {
+  display: flex;
+  justify-content: center;
+  height: 60px; /* Increased height */
+  width: 160px; /* Increased width */
+  margin-left: 1rem;
+}
+
+.navButton {
+  margin: 1rem;
+  width: 120px; /* Increased width */
+  height: 40px; /* Decreased height */
+  border-radius: 20px; /* Added border-radius */
+}
+
+.rightNav {
+  display: flex;
+  align-items: center;
+  margin-left: 500px; /* Bring closer to search bar */
+}
+
+.iconButton {
+  background-color: #a5d6a7; /* Light green */
+  border: none;
+  padding: 0.5rem;
+  cursor: pointer;
+  color: #fff;
+  border-radius: 50%;
+  width: 60px; /* Increased width */
+  height: 60px; /* Increased height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.5rem;
+}
+
+.iconButton:hover {
+  background-color: #81c784; /* Medium green */
+}
+
 .nav {
   width: 250px; /* Adjusted width */
   background-color: #2e7d32; /* Dark green */
@@ -12,22 +70,29 @@
   flex-direction: column;
 }
 
-.nav button {
+.menuButton {
   background-color: #a5d6a7; /* Light green */
   border: none;
-  padding: 0.5rem 1rem;
+  padding: 1rem 2rem; /* Increased padding */
   cursor: pointer;
   color: #fff;
   margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  border-radius: 20px;
 }
 
-.nav button:hover {
+.menuButton:hover {
   background-color: #81c784; /* Medium green */
+}
+
+.menuButton svg {
+  margin-right: 0.5rem;
 }
 
 .main {
   flex-grow: 1;
   padding: 2rem;
-  max-width: 800px; /* Center content */
+  max-width: 1500px; /* Center content */
   margin: 0 auto; /* Center content */
 }
