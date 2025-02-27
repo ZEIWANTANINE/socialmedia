@@ -17,7 +17,7 @@ const HomePage: React.FC = () => {
       setNewPost("");
     }
   };
-
+  
   return (
     <div className={styles.homeContainer} style={{ display: "flex", justifyContent: "center" }}>
       <div className={styles.mainContent}>

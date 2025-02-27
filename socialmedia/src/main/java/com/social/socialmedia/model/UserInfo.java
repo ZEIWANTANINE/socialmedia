@@ -1,32 +1,24 @@
 package com.social.socialmedia.model;
+
 import java.time.LocalDateTime;
-
-import javax.persistence.Column;
-
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import jakarta.persistence.*;
 
 @Entity
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
 @Table(name = "users")
 public class UserInfo {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Long id;
+
     @Column(unique = true, nullable = false)
     private String username;
+
     @Column(unique = true, nullable = false)
     private String email;
+
     @Column(nullable = false)
     private String password;
+
     private String roles;
     private String fullName;
     private String bio;
@@ -34,77 +26,48 @@ public class UserInfo {
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
-    public int getId() {
-        return id;
-    }
 
-    public void setId(int id) {
-        this.id = id;
-    }
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private UserSetting settings; // Liên kết với UserSetting
 
-    public String getUsername() {
-        return username;
-    }
+    // Constructor
+    public UserInfo() {}
 
-    public void setUsername(String username) {
+    public UserInfo(String username, String email, String password) {
         this.username = username;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
         this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
         this.password = password;
+        this.roles = "ROLE_USER";
+        this.createdAt = LocalDateTime.now();
     }
 
-    public String getRoles() {
-        return roles;
-    }
+    // Getter & Setter
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public void setRoles(String roles) {
-        this.roles = roles;
-    }
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
 
-    public String getFullName() {
-        return fullName;
-    }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-    public void setFullName(String fullName) {
-        this.fullName = fullName;
-    }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 
-    public String getBio() {
-        return bio;
-    }
+    public String getRoles() { return roles; }
+    public void setRoles(String roles) { this.roles = roles; }
 
-    public void setBio(String bio) {
-        this.bio = bio;
-    }
+    public String getFullName() { return fullName; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
 
-    public String getProfilePicture() {
-        return profilePicture;
-    }
+    public String getBio() { return bio; }
+    public void setBio(String bio) { this.bio = bio; }
 
-    public void setProfilePicture(String profilePicture) {
-        this.profilePicture = profilePicture;
-    }
+    public String getProfilePicture() { return profilePicture; }
+    public void setProfilePicture(String profilePicture) { this.profilePicture = profilePicture; }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
+    public UserSetting getSettings() { return settings; }
+    public void setSettings(UserSetting settings) { this.settings = settings; }
 }
-
-

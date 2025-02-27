@@ -1,6 +1,7 @@
 package com.social.socialmedia.service;
 
 import com.social.socialmedia.model.UserInfo;
+import com.social.socialmedia.model.UserSetting;
 import com.social.socialmedia.repository.UserRepository;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -34,7 +35,21 @@ public class UserInfoService implements UserDetailsService {
     public String addUser(UserInfo userInfo) {
         // Encode password before saving the user
         userInfo.setPassword(encoder.encode(userInfo.getPassword()));
+        // Set default role if not provided
+        if (userInfo.getRoles() == null || userInfo.getRoles().isEmpty()) {
+            userInfo.setRoles("ROLE_USER");
+        }
+        UserSetting userSetting = new UserSetting(userInfo);
+        userInfo.setSettings(userSetting);
         repository.save(userInfo);
         return "User Added Successfully";
     }
+    public UserInfo findByEmail(String email) {
+        return repository.findByEmail(email).orElse(null);
+    }
+    
+    public boolean checkPassword(String rawPassword, String encodedPassword) {
+        return encoder.matches(rawPassword, encodedPassword);
+    }
+    
 }

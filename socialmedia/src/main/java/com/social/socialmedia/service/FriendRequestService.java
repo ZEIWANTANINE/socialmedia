@@ -20,13 +20,13 @@ public class FriendRequestService {
 
     public List<FriendRequest> getFriendRequestsBySenderId(Long senderId) {
         UserInfo sender = new UserInfo();
-        sender.setId(senderId.intValue());//long to int
+        sender.setId(senderId);//long to Long
         return friendRequestRepository.findBySenderId(sender);
     }
 
     public List<FriendRequest> getFriendRequestsByReceiverId(Long receiverId) {
         UserInfo receiver = new UserInfo();
-        receiver.setId(receiverId.intValue());
+        receiver.setId(receiverId);
         return friendRequestRepository.findByReceiverId(receiver);
     }
 

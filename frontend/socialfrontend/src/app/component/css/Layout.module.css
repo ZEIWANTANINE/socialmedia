@@ -41,6 +41,7 @@
   display: flex;
   align-items: center;
   margin-left: 500px; /* Bring closer to search bar */
+  position: relative;
 }
 
 .iconButton {
@@ -95,4 +96,40 @@
   padding: 2rem;
   max-width: 1500px; /* Center content */
   margin: 0 auto; /* Center content */
+}
+
+.dropdownMenu {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  z-index: 1000;
+  position: absolute;
+  top: 100%; /* Position the dropdown below the button */
+}
+
+.dropdownMenu ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dropdownMenu li {
+  border-bottom: 1px solid #eaeaea;
+}
+
+.dropdownMenu li:last-child {
+  border-bottom: none;
+}
+
+.dropdownMenu button {
+  width: 100%;
+  padding: 10px 20px;
+  text-align: left;
+  background: white;
+  border: none;
+  cursor: pointer;
+}
+
+.dropdownMenu button:hover {
+  background-color: #f5f5f5;
 }
