@@ -1,4 +1,6 @@
 package com.social.socialmedia.model;
+import java.util.Objects;
+
 import jakarta.persistence.Embeddable;
 
 
@@ -21,4 +23,19 @@ public class FriendId {
     public void setUser2Id(Long user2Id) {
         this.user2Id = user2Id;
     }
+     // Override equals() để so sánh hai đối tượng
+     @Override
+     public boolean equals(Object o) {
+         if (this == o) return true;
+         if (o == null || getClass() != o.getClass()) return false;
+         FriendId friendId = (FriendId) o;
+         return Objects.equals(user1Id, friendId.user1Id) &&
+                Objects.equals(user2Id, friendId.user2Id);
+     }
+ 
+     // Override hashCode() để đảm bảo hash nhất quán
+     @Override
+     public int hashCode() {
+         return Objects.hash(user1Id, user2Id);
+     }
 }

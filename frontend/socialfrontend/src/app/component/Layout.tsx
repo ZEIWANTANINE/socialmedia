@@ -61,11 +61,6 @@ const Layout: React.FC<LayoutProps> = ({ setPage, children }) => {
     <div>
       <nav className={styles.topNav}>
         <input type="text" placeholder="Search..." className={styles.searchBar} />
-        <div className={styles.centerNav}>
-          <button onClick={() => setPage("home")} className={styles.navButton}>
-            <FaHome />
-          </button>
-        </div>
         <div className={styles.rightNav}>
           <div className="relative">
             <button onClick={handleBellClick} className={styles.iconButton}>

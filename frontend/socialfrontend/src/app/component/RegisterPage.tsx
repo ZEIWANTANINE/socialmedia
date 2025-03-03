@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import axiosInstance from "../utils/axiosInstance";
 import styles from "./css/RegisterPage.module.css";
+import { apiEndpoints } from "../utils/api";
 
 const RegisterPage: React.FC = () => {
   const [username, setUsername] = useState("");
@@ -14,7 +15,7 @@ const RegisterPage: React.FC = () => {
 
     const userInfo = { username, password, email, fullName, roles: role };
 
-    axiosInstance.post("/auth/register", userInfo)
+    axiosInstance.post(apiEndpoints.register, userInfo)
       .then(() => {
         alert("User registered successfully");
       })

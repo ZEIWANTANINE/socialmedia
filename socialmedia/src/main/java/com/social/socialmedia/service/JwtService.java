@@ -17,7 +17,8 @@ import java.util.function.Function;
 public class JwtService {
 
     // Replace this with a secure key in a real application, ideally fetched from environment variables
-    public static final String SECRET = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+    public static final String SECRET = "oIem2nZcn50zYJ0mDyZvKo0EiL1iuA45fqAkhCMNZ0A=";
+            
 
     // Generate token with given user name
     public String generateToken(String userName) {
@@ -26,13 +27,14 @@ public class JwtService {
     }
 
     // Create a JWT token with specified claims and subject (user name)
+    @SuppressWarnings("deprecation")
     private String createToken(Map<String, Object> claims, String userName) {
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(userName)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 30)) // Token valid for 30 minutes
-                .signWith(getSignKey(), SignatureAlgorithm.HS256)
+                .signWith(SignatureAlgorithm.HS256,SECRET)
                 .compact();
     }
 

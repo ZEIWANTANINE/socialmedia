@@ -3,6 +3,8 @@ package com.social.socialmedia.service;
 import com.social.socialmedia.model.UserInfo;
 import com.social.socialmedia.model.UserSetting;
 import com.social.socialmedia.repository.UserRepository;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -33,6 +35,11 @@ public class UserInfoService implements UserDetailsService {
     }
 
     public String addUser(UserInfo userInfo) {
+        // Check if user already exists
+        if (repository.findByEmail(userInfo.getEmail()).isPresent()) {
+            throw new IllegalArgumentException("User already exists with email: " + userInfo.getEmail());
+        }
+
         // Encode password before saving the user
         userInfo.setPassword(encoder.encode(userInfo.getPassword()));
         // Set default role if not provided
@@ -44,6 +51,7 @@ public class UserInfoService implements UserDetailsService {
         repository.save(userInfo);
         return "User Added Successfully";
     }
+
     public UserInfo findByEmail(String email) {
         return repository.findByEmail(email).orElse(null);
     }

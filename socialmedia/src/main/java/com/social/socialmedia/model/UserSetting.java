@@ -11,7 +11,7 @@ public class UserSetting {
 
     @OneToOne
     @MapsId
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id" ,referencedColumnName = "id")
     private UserInfo user;
 
     private Boolean isPrivate = false;
@@ -22,7 +22,11 @@ public class UserSetting {
     private LocalDateTime createdAt = LocalDateTime.now();
 
     // Constructor
-    public UserSetting() {}
+    public UserSetting() {
+        this.isPrivate = false;
+        this.notificationsEnabled = true;
+        this.theme = "light";
+    }
 
     public UserSetting(UserInfo user) {
         this.user = user;

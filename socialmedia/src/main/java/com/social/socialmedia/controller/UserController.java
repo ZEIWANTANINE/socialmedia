@@ -1,11 +1,13 @@
 package com.social.socialmedia.controller;
 
 import com.social.socialmedia.entity.AuthRequest;
+import com.social.socialmedia.entity.AuthResponse;
 import com.social.socialmedia.model.UserInfo;
 import com.social.socialmedia.model.UserSetting;
 import com.social.socialmedia.service.JwtService;
 import com.social.socialmedia.service.UserInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -15,7 +17,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/auth")
 @CrossOrigin(origins = "http://localhost:3000")
 public class UserController {
 
@@ -34,8 +36,13 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    public String registerUser(@RequestBody UserInfo userInfo) {
-        return service.addUser(userInfo);
+    public ResponseEntity<String> registerUser(@RequestBody UserInfo userInfo) {
+        try {
+            String response = service.addUser(userInfo);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Registration failed: " + e.getMessage());
+        }
     }
 
     @GetMapping("/user/userProfile")
@@ -63,9 +70,10 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> loginUser(@RequestBody AuthRequest authRequest) {
+    public ResponseEntity<AuthResponse> loginUser(@RequestBody AuthRequest authRequest) {
         // Tìm người dùng theo email (username)
         UserInfo user = service.findByEmail(authRequest.getUsername());
+        System.out.println(user + "loi5443");
         
         // Kiểm tra người dùng có tồn tại không
         if (user == null) {
@@ -79,8 +87,10 @@ public class UserController {
 
         // Nếu đúng, tạo JWT token
         String token = jwtService.generateToken(authRequest.getUsername());
-        return ResponseEntity.ok(token);
+        System.out.println(token + "456");
+        return ResponseEntity.ok(new AuthResponse(token));
     }
+
     @GetMapping("/settings")
     public ResponseEntity<UserSetting> getUserSettings(@RequestParam String email) {
         UserInfo user = service.findByEmail(email);
@@ -89,5 +99,4 @@ public class UserController {
         }
         return ResponseEntity.ok(user.getSettings());
     }
-
 }
