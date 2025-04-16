@@ -1,9 +1,3 @@
-/* ProfilePage.module.css */
-.profile {
-  text-align: center;
-  font-size: 2rem;
-  color: #2e7d32; /* Dark green */
-}
 
 .profileContainer {
   display: flex;
