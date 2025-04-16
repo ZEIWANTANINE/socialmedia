@@ -1,6 +1,7 @@
 package com.social.socialmedia.model;
 
 import java.time.LocalDateTime;
+import java.util.Base64;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -8,8 +9,10 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 @Entity
 @Table(name = "posts")
@@ -25,8 +28,12 @@ public class Post {
     @Column(nullable = false)
     private String content;
 
-    private String mediaUrl;
-
+    @Lob
+    @Column(name = "mediaUrl", columnDefinition = "LONGBLOB")
+    private byte[] mediaUrl;
+    private String mediaType;
+    @Transient
+    private String mediaUrlBase64;
     @Column(nullable = false)
     private String visibility = "public";
 
@@ -58,11 +65,11 @@ public class Post {
         this.content = content;
     }
 
-    public String getMediaUrl() {
+    public byte[] getMediaUrl() {
         return mediaUrl;
     }
 
-    public void setMediaUrl(String mediaUrl) {
+    public void setMediaUrl(byte[] mediaUrl) {
         this.mediaUrl = mediaUrl;
     }
 
@@ -80,5 +87,25 @@ public class Post {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+    public String getMediaType() {
+        return mediaType;
+    }
+
+    public void setMediaType(String mediaType) {
+        this.mediaType = mediaType;
+    }
+
+    public String getMediaUrlBase64() {
+        return mediaUrlBase64;
+    }
+
+    public void setMediaUrlBase64(String mediaUrlBase64) {
+        this.mediaUrlBase64 = mediaUrlBase64;
+    }
+    public void convertMediaUrlToBase64() {
+        if (this.mediaUrl != null) {
+            this.mediaUrlBase64 = Base64.getEncoder().encodeToString(this.mediaUrl);
+        }
     }
 }

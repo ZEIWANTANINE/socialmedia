@@ -1,6 +1,10 @@
 package com.social.socialmedia.model;
 
 import java.time.LocalDateTime;
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+
 import jakarta.persistence.*;
 
 @Entity
@@ -28,7 +32,10 @@ public class UserInfo {
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
     private UserSetting settings; // Liên kết với UserSetting
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Post> posts; // Liên kết với Post
 
     // Constructor
     public UserInfo() {}
@@ -70,4 +77,6 @@ public class UserInfo {
 
     public UserSetting getSettings() { return settings; }
     public void setSettings(UserSetting settings) { this.settings = settings; }
+    public List<Post> getPosts() { return posts; }
+    public void setPosts(List<Post> posts) { this.posts = posts; }
 }

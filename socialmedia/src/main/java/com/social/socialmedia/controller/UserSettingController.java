@@ -15,7 +15,7 @@ import com.social.socialmedia.model.UserSetting;
 import com.social.socialmedia.service.UserSettingService;
 
 @RestController
-@RequestMapping("/api/usersettings")
+@RequestMapping("/auth/usersettings")
 public class UserSettingController {
     @Autowired
     private UserSettingService userSettingService;

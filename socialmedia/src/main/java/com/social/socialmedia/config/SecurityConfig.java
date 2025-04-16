@@ -4,7 +4,6 @@ import java.util.List;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -42,6 +41,8 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/auth/welcome", "/auth/login", "/auth/register").permitAll()
+                .requestMatchers("/posts", "/posts/create", "/posts/upload").authenticated()
+                .requestMatchers("/posts/**").hasAuthority("ROLE_USER")
                 .requestMatchers("/user/**").hasAuthority("ROLE_USER")
                 .requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
                 .anyRequest().authenticated()
@@ -53,13 +54,13 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:3000")); // Only allow from this specific origin
+        config.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:6789")); // Cho phép cả hai origin
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type")); // Specify allowed headers!
-        config.setAllowCredentials(true); // Crucial for authentication with cookies/tokens
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept")); // Thêm Accept header
+        config.setAllowCredentials(true);
         config.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config); // Apply to all paths
+        source.registerCorsConfiguration("/**", config);
         return source;
     }
 

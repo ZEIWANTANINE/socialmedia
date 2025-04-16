@@ -8,6 +8,6 @@ import com.social.socialmedia.model.Post;
 
 public interface PostRepository extends JpaRepository<Post, Long> {
     List<Post> findByUserId(Long userId);
-    
+    List<Post> findByUserUsername(String username); // Fetch posts by username
     
 }

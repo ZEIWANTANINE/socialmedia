@@ -63,7 +63,7 @@ public class UserController {
             new UsernamePasswordAuthenticationToken(authRequest.getUsername(), authRequest.getPassword())
         );
         if (authentication.isAuthenticated()) {
-            return jwtService.generateToken(authRequest.getUsername());
+            return jwtService.generateToken(authRequest.getUsername(), service.findByEmail(authRequest.getUsername()).getRoles());
         } else {
             throw new UsernameNotFoundException("Invalid user request!");
         }
@@ -86,7 +86,7 @@ public class UserController {
         }
 
         // Nếu đúng, tạo JWT token
-        String token = jwtService.generateToken(authRequest.getUsername());
+        String token = jwtService.generateToken(user.getEmail(), user.getRoles());
         System.out.println(token + "456");
         return ResponseEntity.ok(new AuthResponse(token));
     }
@@ -99,4 +99,5 @@ public class UserController {
         }
         return ResponseEntity.ok(user.getSettings());
     }
+    
 }

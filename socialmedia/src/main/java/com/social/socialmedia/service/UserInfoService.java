@@ -3,8 +3,6 @@ package com.social.socialmedia.service;
 import com.social.socialmedia.model.UserInfo;
 import com.social.socialmedia.model.UserSetting;
 import com.social.socialmedia.repository.UserRepository;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -28,7 +26,7 @@ public class UserInfoService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         Optional<UserInfo> userDetail = repository.findByEmail(username); // Assuming 'email' is used as username
-
+        System.out.println("User found in database: " + userDetail);
         // Converting UserInfo to UserDetails
         return userDetail.map(UserInfoDetails::new)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));

@@ -1,6 +1,9 @@
 package com.social.socialmedia.model;
 
 import java.time.LocalDateTime;
+
+import com.fasterxml.jackson.annotation.JsonBackReference;
+
 import jakarta.persistence.*;
 
 @Entity
@@ -11,6 +14,7 @@ public class UserSetting {
 
     @OneToOne
     @MapsId
+    @JsonBackReference
     @JoinColumn(name = "user_id" ,referencedColumnName = "id")
     private UserInfo user;
 

@@ -12,12 +12,12 @@ import java.util.stream.Collectors;
 
 public class UserInfoDetails implements UserDetails {
 
-    private String username; // Changed from 'name' to 'username' for clarity
+    private String username; // This will be the email
     private String password;
     private List<GrantedAuthority> authorities;
 
     public UserInfoDetails(UserInfo userInfo) {
-        this.username = userInfo.getFullName(); // Assuming 'name' is used as 'username'
+        this.username = userInfo.getEmail(); // Use email as username
         this.password = userInfo.getPassword();
         this.authorities = List.of(userInfo.getRoles().split(","))
                 .stream()
