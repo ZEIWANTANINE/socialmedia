@@ -23,11 +23,13 @@ export default function LoginPage() {
         }
       );
 
-      const token = response.data.token;
+      const {token,userId} = response.data;
+      
       if (token) {
         localStorage.setItem("jwtToken", token);
         localStorage.setItem("username", username);
-      
+        localStorage.setItem("userId", userId);
+        console.log("Login response:", response.data);
         axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${token}`;
         router.push("/home");
       } else {

@@ -9,13 +9,29 @@ const HomePage: React.FC = () => {
   const [posts, setPosts] = useState<any[]>([]);
   const [newPost, setNewPost] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
+    // Lấy userId từ localStorage
+    const storedUserId = localStorage.getItem("userId");
+    if (storedUserId) {
+      setUserId(storedUserId);
+      console.log("Stored userId:", storedUserId);
+    } else {
+      console.error("User ID not found. Redirecting to login...");
+      window.location.href = "/login"; // Điều hướng đến trang đăng nhập nếu userId không tồn tại
+    }
+
     const fetchPosts = async () => {
       try {
         const response = await axiosInstance.get(apiEndpoints.posts);
-        console.log("Posts fetched from backend:", response.data); // Log dữ liệu trả về
-        setPosts(response.data);
+        console.log("Posts fetched from backend:", response.data);
+        
+        // Lọc các bài viết hợp lệ (loại bỏ các phần tử không phải là đối tượng bài viết)
+        const validPosts = response.data.filter((post: any) => post && post.id);
+        console.log("Valid posts:", validPosts);
+        
+        setPosts(validPosts); // Cập nhật state với các bài viết hợp lệ
       } catch (error) {
         console.error("Error fetching posts:", error);
         setPosts([]);
@@ -35,7 +51,6 @@ const HomePage: React.FC = () => {
 
     try {
       const token = localStorage.getItem("jwtToken");
-      console.log("JWT Token ở frontend:", token);
       if (!token) {
         throw new Error("JWT token not found in localStorage");
       }
@@ -43,11 +58,11 @@ const HomePage: React.FC = () => {
       const response = await axios.post("http://localhost:6789/posts", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
-          Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+          Authorization: `Bearer ${token}`,
         },
       });
       console.log("Post created:", response.data);
-      setPosts([response.data, ...posts]); // Add the new post to the list
+      setPosts([response.data, ...posts]);
       setNewPost("");
       setFile(null);
     } catch (error) {
@@ -57,20 +72,17 @@ const HomePage: React.FC = () => {
 
   const handleLike = (postId: number) => {
     console.log(`Liked post with ID: ${postId}`);
-    // Gửi request đến backend để xử lý like
-    // axios.post(`${apiEndpoints.posts}/${postId}/like`);
   };
 
   const handleComment = (postId: number) => {
     console.log(`Commented on post with ID: ${postId}`);
-    // Hiển thị modal hoặc input để nhập comment
   };
 
   return (
-    <Layout>
+    <Layout userId={userId || ""}>
       <div className="flex justify-center">
         <div className="w-full max-w-2xl">
-          {/* Create Post */}
+          {/* Create Post Form */}
           <form onSubmit={handlePostSubmit} className="mb-4">
             <textarea
               value={newPost}
@@ -90,36 +102,46 @@ const HomePage: React.FC = () => {
           </form>
 
           {/* List Posts */}
-          {Array.isArray(posts) ? (
-            posts.map((post,index) => (
-              <div key={post.id||index} className="p-4 border rounded mb-4">
-                <p>{post.content ? post.content : "No content available"}</p>
-                {post.mediaUrlBase64 && (
-                  post.mediaType === "image" ? (
-                    <img
-                      src={`data:image/jpeg;base64,${post.mediaUrlBase64}`}
-                      alt="Post media"
-                      className="w-full rounded"
-                    />
-                  ) : post.mediaType === "video" ? (
-                    <video controls className="w-full rounded">
-                      <source src={`data:video/mp4;base64,${post.mediaUrlBase64}`} type="video/mp4" />
-                      Your browser does not support the video tag.
-                    </video>
-                  ) : (
-                    <p>Unsupported media type</p>
-                  )
+          {Array.isArray(posts) && posts.length > 0 ? (
+            posts.map((post) => (
+              <div
+                key={post.id} // Sử dụng post.id nếu có, đảm bảo không trùng lặp
+                className="p-4 border rounded mb-4 bg-white shadow"
+              >
+                <p className="my-2">{post.content || ""}</p>
+
+                {/* Display media */}
+                {post.mediaUrlBase64 && post.mediaType && (
+                  <div className="mt-2">
+                    {post.mediaType.startsWith("image/") && (
+                      <img
+                        src={post.mediaUrlBase64}
+                        alt="Post media"
+                        className="max-w-full h-auto rounded"
+                      />
+                    )}
+                    {post.mediaType.startsWith("video/") && (
+                      <video
+                        src={post.mediaUrlBase64}
+                        controls
+                        className="max-w-full h-auto rounded"
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                    )}
+                  </div>
                 )}
-                <div className="flex justify-between mt-2">
+
+                <div className="flex justify-between mt-2 border-t pt-2">
                   <button
                     onClick={() => handleLike(post.id)}
-                    className="text-blue-500 hover:underline"
+                    className="text-gray-600 hover:text-blue-500"
                   >
                     Like
                   </button>
                   <button
                     onClick={() => handleComment(post.id)}
-                    className="text-blue-500 hover:underline"
+                    className="text-gray-600 hover:text-blue-500"
                   >
                     Comment
                   </button>

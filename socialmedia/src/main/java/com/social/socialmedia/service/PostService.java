@@ -33,14 +33,20 @@ public class PostService {
     public List<Post> getAllPosts() {
         return postRepository.findAll().stream()
             .peek(post -> {
-                if (post.getMediaUrl() != null) {
-                    post.convertMediaUrlToBase64(); // Chuyển đổi mediaUrl sang Base64
-                    post.setMediaUrl(null); // Xóa dữ liệu nhị phân để tránh trả về
+                if (post.getMediaUrl() != null && post.getMediaType() != null) {
+                    // Encode binary to base64 string
+                    String base64Encoded = Base64.getEncoder().encodeToString(post.getMediaUrl());
+    
+                    // Format to data URL: "data:image/png;base64,..."
+                    String base64Url = "data:" + post.getMediaType() + ";base64," + base64Encoded;
+                    post.setMediaUrlBase64(base64Url);
+    
+                    // Don't send raw binary
+                    post.setMediaUrl(null);
                 }
             })
             .collect(Collectors.toList());
     }
-
     public List<Post> getPostsByUserId(Long userId) {
         return postRepository.findByUserId(userId);
     }
@@ -89,7 +95,7 @@ public class PostService {
     public Post createPostWithMedia(String content, MultipartFile file, String username) {
         UserInfo user = userRepository.findByEmail(username)
             .orElseThrow(() -> new RuntimeException("User not found: " + username));
-        System.out.println("Found user: " + user.getUsername()); // Log thông tin người dùng
+        System.out.println("Found user: " + user.getUsername());
     
         Post post = new Post();
         post.setContent(content);
@@ -97,45 +103,51 @@ public class PostService {
     
         if (file != null && !file.isEmpty()) {
             try {
-                // Kiểm tra kích thước file (giới hạn 10MB)
-            if (file.getSize() > 10 * 1024 * 1024) {
-                throw new RuntimeException("File size exceeds the limit of 10MB");
-            }
+                if (file.getSize() > 10 * 1024 * 1024) {
+                    throw new RuntimeException("File size exceeds the limit of 10MB");
+                }
+    
+                // Lưu file tạm (nếu cần - không bắt buộc)
                 String uploadsDir = "uploads/";
                 Path uploadPath = Paths.get(uploadsDir);
                 if (!Files.exists(uploadPath)) {
                     Files.createDirectories(uploadPath);
-                    System.out.println("Created uploads directory: " + uploadsDir); // Log tạo thư mục
+                    System.out.println("Created uploads directory: " + uploadsDir);
                 }
     
                 String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
                 Path filePath = uploadPath.resolve(fileName);
                 Files.copy(file.getInputStream(), filePath);
-                System.out.println("Saved file to: " + filePath); // Log đường dẫn file
+                System.out.println("Saved file to: " + filePath);
     
-                post.setMediaUrl(file.getBytes());
+                byte[] fileBytes = file.getBytes();
+                post.setMediaUrl(fileBytes); // Lưu binary vào DB
+    
                 String contentType = file.getContentType();
-                if (contentType != null) {
-                    if (contentType.startsWith("image/")) {
-                        post.setMediaType("image");
-                    } else if (contentType.startsWith("video/")) {
-                        post.setMediaType("video");
-                    } else {
-                        throw new RuntimeException("Unsupported media type: " + contentType);
-                    }
-                    System.out.println("Media type: " + post.getMediaType()); // Log loại media
+                if (contentType != null && (contentType.startsWith("image/") || contentType.startsWith("video/"))) {
+                    post.setMediaType(contentType);
+    
+                    // Chuyển sang base64 và tạo data URL
+                    String base64Encoded = Base64.getEncoder().encodeToString(fileBytes);
+                    String base64Url = "data:" + contentType + ";base64," + base64Encoded;
+                    post.setMediaUrlBase64(base64Url);
+    
+                    System.out.println("Generated base64 mediaUrl for post.");
+                } else {
+                    throw new RuntimeException("Unsupported media type: " + contentType);
                 }
             } catch (IOException e) {
-                System.err.println("Failed to upload file: " + e.getMessage()); // Log lỗi
+                System.err.println("Failed to upload file: " + e.getMessage());
                 throw new RuntimeException("Failed to upload file", e);
             }
         }
     
         Post savedPost = postRepository.save(post);
-        System.out.println("Saved post with media: " + savedPost); // Log bài viết đã lưu
+        System.out.println("Saved post with media: " + savedPost);
     
         return savedPost;
     }
+    
     // Lấy bài viết theo ID và chuyển đổi mediaUrl sang Base64
     public Optional<Post> getPostByIdWithMedia(Long postId) {
         return postRepository.findById(postId).map(post -> {

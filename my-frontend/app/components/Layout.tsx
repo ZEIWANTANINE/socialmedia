@@ -6,9 +6,10 @@ import Link from "next/link";
 
 interface LayoutProps {
   children: React.ReactNode;
+  userId: string; // Thêm userId để truyền vào Layout
 }
 
-export default function Layout({ children }: LayoutProps) {
+export default function Layout({ children,userId }: LayoutProps) {
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
@@ -19,15 +20,15 @@ export default function Layout({ children }: LayoutProps) {
           className="w-96 p-2 rounded bg-gray-700 text-white"
         />
         <div className="flex gap-4">
-          <button className="p-2">
+          <Link href={`/profile/${userId}`} className="p-2">
             <FaEnvelope />
-          </button>
-          <button className="p-2">
+          </Link>
+          <Link href={``} className="p-2">
             <FaBell />
-          </button>
-          <button className="p-2">
+          </Link>
+          <Link href={`/profile/${userId}`} className="p-2">
             <FaUser />
-          </button>
+          </Link>
         </div>
       </nav>
 
@@ -42,7 +43,7 @@ export default function Layout({ children }: LayoutProps) {
               </Link>
             </li>
             <li>
-              <Link href="/profile" className="block w-full text-left p-2 hover:bg-gray-300 rounded">
+              <Link href={`/profile/${userId}`} className="block w-full text-left p-2 hover:bg-gray-300 rounded">
                 <FaUser className="inline-block mr-2" /> Profile
               </Link>
             </li>
@@ -52,7 +53,7 @@ export default function Layout({ children }: LayoutProps) {
               </Link>
             </li>
             <li>
-              <Link href="/friends" className="block w-full text-left p-2 hover:bg-gray-300 rounded">
+              <Link href="/friend" className="block w-full text-left p-2 hover:bg-gray-300 rounded">
                 <FaUsers className="inline-block mr-2" /> Friends
               </Link>
             </li>

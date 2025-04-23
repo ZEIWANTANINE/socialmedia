@@ -2,17 +2,28 @@
 import React, { useState, useEffect } from "react";
 import Layout from "../components/Layout";
 import axiosInstance from "../utils/axiosInstance";
+import { useRouter } from "next/router";
 
 const ProfilePage: React.FC = () => {
+  const router = useRouter();
+  const { id } = router.query; // Lấy id từ URL
   const [user, setUser] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [newPost, setNewPost] = useState("");
-
+  const [userId, setUserId] = useState<string | null>(null);
   useEffect(() => {
+    if (!id) return;
+    const storedUserId = localStorage.getItem("userId");
+    if (storedUserId) {
+      setUserId(storedUserId);
+    } else {
+      console.error("User ID not found. Redirecting to login...");
+      window.location.href = "/login"; // Điều hướng đến trang đăng nhập nếu userId không tồn tại
+    }
     // Fetch user profile data
     const fetchUser = async () => {
       try {
-        const response = await axiosInstance.get("/api/user/profile");
+        const response = await axiosInstance.get(`/auth/usersettings/${id}`);
         setUser(response.data);
       } catch (error) {
         console.error("Error fetching user profile:", error);
@@ -22,7 +33,7 @@ const ProfilePage: React.FC = () => {
     // Fetch user posts
     const fetchPosts = async () => {
       try {
-        const response = await axiosInstance.get("/api/user/posts");
+        const response = await axiosInstance.get("/posts");
         setPosts(response.data);
       } catch (error) {
         console.error("Error fetching user posts:", error);
@@ -42,7 +53,7 @@ const ProfilePage: React.FC = () => {
   };
 
   return (
-    <Layout>
+    <Layout  userId={id as string}>
       <div className="max-w-4xl mx-auto">
         {/* Profile Header */}
         <div className="bg-white shadow rounded-lg p-4 mb-4">
