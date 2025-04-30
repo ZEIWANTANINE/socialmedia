@@ -25,7 +25,33 @@ public class PostController {
     @GetMapping
     public ResponseEntity<List<Post>> getAllPosts() {
         List<Post> posts = postService.getAllPosts();
-        return ResponseEntity.ok(posts);
+        
+        // Debug log: kiểm tra từng phần tử trong danh sách posts
+        System.out.println("=== Controller getAllPosts() ===");
+        System.out.println("Posts size from service: " + posts.size());
+        
+        // Debug chi tiết từng phần tử
+        for (int i = 0; i < Math.min(posts.size(), 5); i++) {
+            Object item = posts.get(i);
+            System.out.println("Item " + i + " class: " + item.getClass().getName());
+            if (item instanceof Post) {
+                Post post = (Post) item;
+                System.out.println("  - ID: " + post.getId() + ", Content: " + post.getContent());
+                System.out.println("  - Has mediaUrlBase64: " + (post.getMediaUrlBase64() != null));
+                System.out.println("  - User: " + (post.getUser() != null ? post.getUser().getUsername() : "null"));
+            } else {
+                System.out.println("  - Not a Post: " + item);
+            }
+        }
+        
+        // Lọc bỏ các phần tử không phải Post
+        List<Post> validPosts = posts.stream()
+            .filter(p -> p != null && p instanceof Post)
+            .collect(java.util.stream.Collectors.toList());
+            
+        System.out.println("Valid posts size: " + validPosts.size());
+        
+        return ResponseEntity.ok(validPosts);
     }
 
     @GetMapping("/user/{userId}")

@@ -10,11 +10,9 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.multipart.MultipartFile;
 import com.social.socialmedia.model.Post;
 import com.social.socialmedia.model.UserInfo;
-import com.social.socialmedia.model.UserSetting;
 import com.social.socialmedia.repository.PostRepository;
 import com.social.socialmedia.repository.UserRepository;
 import com.social.socialmedia.repository.UserSettingRepository;
@@ -31,22 +29,45 @@ public class PostService {
     private UserRepository userRepository;
 
     public List<Post> getAllPosts() {
-        return postRepository.findAll().stream()
-            .peek(post -> {
+        List<Post> posts = postRepository.findAll();
+        System.out.println("===== Posts fetched from database =====");
+        
+        if (posts == null || posts.isEmpty()) {
+            System.out.println("⚠️ No posts found or list is empty!");
+            return List.of();
+        }
+        
+        // Đảm bảo danh sách chỉ chứa các object Post
+        List<Post> validPosts = posts.stream()
+            .filter(item -> item instanceof Post)  // Chỉ lấy các phần tử kiểu Post
+            .map(item -> (Post) item)              // Cast về Post
+            .collect(Collectors.toList());
+        
+        System.out.println("Post count after filtering: " + validPosts.size());
+        
+        // Convert mediaUrl sang base64 để trả về frontend
+        for (Post post : validPosts) {
+            try {
                 if (post.getMediaUrl() != null && post.getMediaType() != null) {
-                    // Encode binary to base64 string
                     String base64Encoded = Base64.getEncoder().encodeToString(post.getMediaUrl());
-    
-                    // Format to data URL: "data:image/png;base64,..."
                     String base64Url = "data:" + post.getMediaType() + ";base64," + base64Encoded;
                     post.setMediaUrlBase64(base64Url);
-    
-                    // Don't send raw binary
-                    post.setMediaUrl(null);
+                    post.setMediaUrl(null); // Xoá raw binary sau khi convert
                 }
-            })
-            .collect(Collectors.toList());
+                
+                // Đảm bảo các trường chéo đã được đổ đúng giá trị
+                if (post.getUser() != null) {
+                    // UserId và username sẽ được tự động đổ từ getter và được trả về
+                    // trong JSON mà không cần truy cập vào toàn bộ đối tượng user
+                }
+            } catch (Exception e) {
+                System.err.println("Error processing post " + post.getId() + ": " + e.getMessage());
+            }
+        }
+        
+        return validPosts;
     }
+    
     public List<Post> getPostsByUserId(Long userId) {
         return postRepository.findByUserId(userId);
     }

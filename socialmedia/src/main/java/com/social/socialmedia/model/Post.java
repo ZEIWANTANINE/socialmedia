@@ -3,8 +3,9 @@ package com.social.socialmedia.model;
 import java.time.LocalDateTime;
 import java.util.Base64;
 
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -16,12 +17,12 @@ import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
+import lombok.Data;
 
+@Data 
 @Entity
 @Table(name = "posts")
-@JsonIdentityInfo(
-    generator = ObjectIdGenerators.PropertyGenerator.class,
-    property = "id")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Post {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,6 +30,7 @@ public class Post {
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonBackReference
     private UserInfo user;
 
     @Column(nullable = false)
@@ -36,17 +38,34 @@ public class Post {
 
     @Lob
     @Column(name = "mediaUrl", columnDefinition = "LONGBLOB")
+    @JsonIgnore
     private byte[] mediaUrl;
+    
     private String mediaType;
+    
     @Transient
     private String mediaUrlBase64;
+    
     @Column(nullable = false)
     private String visibility = "public";
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
     
-    // Getters and Setters
+    @Transient
+    private Long userId;
+    
+    @Transient
+    private String username;
+    
+    public Long getUserId() {
+        return user != null ? user.getId() : null;
+    }
+    
+    public String getUsername() {
+        return user != null ? user.getUsername() : null;
+    }
+    
     public Long getId() {
         return id;
     }

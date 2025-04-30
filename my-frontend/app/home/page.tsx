@@ -26,12 +26,14 @@ const HomePage: React.FC = () => {
       try {
         const response = await axiosInstance.get(apiEndpoints.posts);
         console.log("Posts fetched from backend:", response.data);
-        
-        // Lọc các bài viết hợp lệ (loại bỏ các phần tử không phải là đối tượng bài viết)
-        const validPosts = response.data.filter((post: any) => post && post.id);
-        console.log("Valid posts:", validPosts);
-        
-        setPosts(validPosts); // Cập nhật state với các bài viết hợp lệ
+        // Lọc dữ liệu để chỉ lấy các post hợp lệ (có thuộc tính id và content)
+        const validPosts = Array.isArray(response.data) 
+          ? response.data.filter((item: any) => 
+              typeof item === 'object' && item !== null && 'id' in item && 'content' in item
+            )
+          : [];
+        console.log("Valid posts after filtering:", validPosts);
+        setPosts(validPosts);
       } catch (error) {
         console.error("Error fetching posts:", error);
         setPosts([]);
@@ -62,7 +64,10 @@ const HomePage: React.FC = () => {
         },
       });
       console.log("Post created:", response.data);
-      setPosts([response.data, ...posts]);
+      // Kiểm tra xem response.data có phải là object Post hợp lệ không
+      if (response.data && typeof response.data === 'object' && 'id' in response.data) {
+        setPosts([response.data, ...posts]);
+      }
       setNewPost("");
       setFile(null);
     } catch (error) {

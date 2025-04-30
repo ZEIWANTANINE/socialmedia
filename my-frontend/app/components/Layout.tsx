@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
-import { FaHome, FaBell, FaEnvelope, FaUser, FaComments, FaUsers } from "react-icons/fa";
+import { FaHome, FaEnvelope, FaUser, FaComments, FaUsers } from "react-icons/fa";
 import Link from "next/link";
+import NotificationBell from './NotificationBell';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -24,7 +25,7 @@ export default function Layout({ children,userId }: LayoutProps) {
             <FaEnvelope />
           </Link>
           <Link href={``} className="p-2">
-            <FaBell />
+            <NotificationBell userId={userId} />
           </Link>
           <Link href={`/profile/${userId}`} className="p-2">
             <FaUser />

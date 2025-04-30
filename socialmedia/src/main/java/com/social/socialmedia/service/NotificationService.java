@@ -7,7 +7,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.social.socialmedia.model.Notification;
+import com.social.socialmedia.model.UserInfo;
 import com.social.socialmedia.repository.NotificationRepository;
+
 @Service
 public class NotificationService {
     @Autowired
@@ -18,7 +20,21 @@ public class NotificationService {
     }
 
     public List<Notification> getNotificationsByUserId(Long userId) {
-        return notificationRepository.findByUserId(userId);
+        UserInfo user = new UserInfo();
+        user.setId(userId);
+        return notificationRepository.findByUserOrderByCreatedAtDesc(user);
+    }
+    
+    public List<Notification> getUnreadNotifications(Long userId) {
+        UserInfo user = new UserInfo();
+        user.setId(userId);
+        return notificationRepository.findByUserAndIsReadOrderByCreatedAtDesc(user, false);
+    }
+    
+    public long countUnreadNotifications(Long userId) {
+        UserInfo user = new UserInfo();
+        user.setId(userId);
+        return notificationRepository.countByUserAndIsRead(user, false);
     }
 
     public Optional<Notification> getNotificationById(Long notificationId) {
@@ -27,6 +43,16 @@ public class NotificationService {
 
     public Notification saveNotification(Notification notification) {
         return notificationRepository.save(notification);
+    }
+    
+    public Notification markAsRead(Long notificationId) {
+        Optional<Notification> notificationOpt = notificationRepository.findById(notificationId);
+        if (notificationOpt.isPresent()) {
+            Notification notification = notificationOpt.get();
+            notification.setRead(true);
+            return notificationRepository.save(notification);
+        }
+        return null;
     }
 
     public void deleteNotification(Long notificationId) {

@@ -16,6 +16,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/auth")
 @CrossOrigin(origins = "http://localhost:3000")
@@ -100,4 +102,18 @@ public class UserController {
         return ResponseEntity.ok(user.getSettings());
     }
     
+    @GetMapping("/users")
+    public ResponseEntity<List<UserInfo>> getAllUsers() {
+        List<UserInfo> users = service.getAllUsers();
+        return ResponseEntity.ok(users);
+    }
+    
+    @GetMapping("/users/{id}")
+    public ResponseEntity<UserInfo> getUserById(@PathVariable Long id) {
+        UserInfo user = service.findById(id);
+        if (user == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(user);
+    }
 }

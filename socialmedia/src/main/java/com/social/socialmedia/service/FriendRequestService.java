@@ -20,7 +20,7 @@ public class FriendRequestService {
 
     public List<FriendRequest> getFriendRequestsBySenderId(Long senderId) {
         UserInfo sender = new UserInfo();
-        sender.setId(senderId);//long to Long
+        sender.setId(senderId);
         return friendRequestRepository.findBySenderId(sender);
     }
 
@@ -28,6 +28,12 @@ public class FriendRequestService {
         UserInfo receiver = new UserInfo();
         receiver.setId(receiverId);
         return friendRequestRepository.findByReceiverId(receiver);
+    }
+    
+    public List<FriendRequest> getPendingFriendRequestsByReceiverId(Long receiverId) {
+        UserInfo receiver = new UserInfo();
+        receiver.setId(receiverId);
+        return friendRequestRepository.findByReceiverIdAndStatus(receiver, "pending");
     }
 
     public Optional<FriendRequest> getFriendRequestById(Long friendRequestId) {
