@@ -8,9 +8,10 @@ import NotificationBell from './NotificationBell';
 interface LayoutProps {
   children: React.ReactNode;
   userId: string; // Thêm userId để truyền vào Layout
+  disableWebSocket?: boolean;
 }
 
-export default function Layout({ children,userId }: LayoutProps) {
+export default function Layout({ children, userId, disableWebSocket = false }: LayoutProps) {
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
@@ -24,9 +25,7 @@ export default function Layout({ children,userId }: LayoutProps) {
           <Link href={`/profile/${userId}`} className="p-2">
             <FaEnvelope />
           </Link>
-          <Link href={``} className="p-2">
-            <NotificationBell userId={userId} />
-          </Link>
+          {!disableWebSocket && <NotificationBell userId={userId} />}
           <Link href={`/profile/${userId}`} className="p-2">
             <FaUser />
           </Link>

@@ -90,7 +90,7 @@ public class UserController {
         // Nếu đúng, tạo JWT token
         String token = jwtService.generateToken(user.getEmail(), user.getRoles());
         System.out.println(token + "456");
-        return ResponseEntity.ok(new AuthResponse(token));
+        return ResponseEntity.ok(new AuthResponse(token, user.getId()));
     }
 
     @GetMapping("/settings")
