@@ -7,15 +7,20 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.ArrayList;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import com.social.socialmedia.model.Post;
 import com.social.socialmedia.model.UserInfo;
+import com.social.socialmedia.model.Comment;
+import com.social.socialmedia.model.Like;
 import com.social.socialmedia.repository.PostRepository;
 import com.social.socialmedia.repository.UserRepository;
 import com.social.socialmedia.repository.UserSettingRepository;
+import com.social.socialmedia.repository.CommentRepository;
+import com.social.socialmedia.repository.LikeRepository;
 
 import java.nio.file.Path;
 
@@ -27,6 +32,10 @@ public class PostService {
     private UserSettingRepository userSettingRepository;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private CommentRepository commentRepository;
+    @Autowired
+    private LikeRepository likeRepository;
 
     public List<Post> getAllPosts() {
         List<Post> posts = postRepository.findAll();
@@ -37,43 +46,43 @@ public class PostService {
             return List.of();
         }
         
-        // Đảm bảo danh sách chỉ chứa các object Post
-        List<Post> validPosts = posts.stream()
-            .filter(item -> item instanceof Post)  // Chỉ lấy các phần tử kiểu Post
-            .map(item -> (Post) item)              // Cast về Post
-            .collect(Collectors.toList());
-        
-        System.out.println("Post count after filtering: " + validPosts.size());
-        
-        // Convert mediaUrl sang base64 để trả về frontend
-        for (Post post : validPosts) {
-            try {
-                if (post.getMediaUrl() != null && post.getMediaType() != null) {
-                    String base64Encoded = Base64.getEncoder().encodeToString(post.getMediaUrl());
-                    String base64Url = "data:" + post.getMediaType() + ";base64," + base64Encoded;
-                    post.setMediaUrlBase64(base64Url);
-                    post.setMediaUrl(null); // Xoá raw binary sau khi convert
-                }
-                
-                // Đảm bảo các trường chéo đã được đổ đúng giá trị
-                if (post.getUser() != null) {
-                    // UserId và username sẽ được tự động đổ từ getter và được trả về
-                    // trong JSON mà không cần truy cập vào toàn bộ đối tượng user
-                }
-            } catch (Exception e) {
-                System.err.println("Error processing post " + post.getId() + ": " + e.getMessage());
+        // Process each post to ensure data is correctly loaded
+        for (Post post : posts) {
+            // Initialize comments
+            if (post.getCommentList() != null) {
+                post.setComments(new ArrayList<>(post.getCommentList()));
+            } else {
+                post.setComments(new ArrayList<>());
+            }
+            
+            // Initialize likes count
+            if (post.getLikeList() != null) {
+                post.setLikes(post.getLikeList().size());
+            } else {
+                post.setLikes(0);
+            }
+            
+            // Set username from user if available
+            if (post.getUser() != null) {
+                post.setUsername(post.getUser().getUsername());
+            }
+            
+            // Convert media to Base64 if exists
+            if (post.getMediaUrl() != null) {
+                post.convertMediaUrlToBase64();
             }
         }
         
-        return validPosts;
+        System.out.println("Post count: " + posts.size());
+        return posts;
     }
     
     public List<Post> getPostsByUserId(Long userId) {
         return postRepository.findByUserId(userId);
     }
 
-    public Optional<Post> getPostById(Long postId) {
-        return postRepository.findById(postId);
+    public Optional<Post> getPostById(Long id) {
+        return postRepository.findById(id);
     }
 
     public Post savePost(Post post) {
@@ -83,23 +92,94 @@ public class PostService {
     public void deletePost(Long postId) {
         postRepository.deleteById(postId);
     }
-    public List<Post> getPostsByUsername(String username) {
-        UserInfo user = userRepository.findByEmail(username)
-            .orElseThrow(() -> new RuntimeException("User not found: " + username));
-        System.out.println("Found user: " + user.getUsername()); // Log thông tin người dùng
-    
-        List<Post> posts = postRepository.findByUserUsername(user.getUsername());
-        System.out.println("Fetched posts for user: " + posts); // Log danh sách bài viết
-    
-        return posts.stream()
-            .peek(post -> {
-                if (post.getMediaUrl() != null) {
-                    System.out.println("Converting mediaUrl to Base64 for post ID: " + post.getId());
-                    post.setMediaUrlBase64(Base64.getEncoder().encodeToString(post.getMediaUrl()));
-                    post.setMediaUrl(null); // Xóa dữ liệu nhị phân để tránh trả về
+    public List<Post> getPostsByUsername(String usernameOrEmail) {
+        // First try to find user by email
+        UserInfo user = null;
+        try {
+            Optional<UserInfo> userByEmail = userRepository.findByEmail(usernameOrEmail);
+            if (userByEmail.isPresent()) {
+                user = userByEmail.get();
+                System.out.println("Found user by email: " + user.getUsername());
+            } else {
+                // If not found by email, try by username
+                Optional<UserInfo> userByUsername = userRepository.findByUsername(usernameOrEmail);
+                if (userByUsername.isPresent()) {
+                    user = userByUsername.get();
+                    System.out.println("Found user by username: " + user.getUsername());
+                } else {
+                    System.out.println("User not found by either email or username: " + usernameOrEmail);
+                    return List.of();
                 }
-            })
-            .collect(Collectors.toList());
+            }
+        } catch (Exception e) {
+            System.err.println("Error finding user: " + e.getMessage());
+            return List.of();
+        }
+
+        // Now fetch posts by the user's username
+        List<Post> posts;
+        try {
+            posts = postRepository.findByUserUsername(user.getUsername());
+            System.out.println("Fetched " + posts.size() + " posts for user: " + user.getUsername());
+        } catch (Exception e) {
+            System.err.println("Error fetching posts: " + e.getMessage());
+            return List.of();
+        }
+
+        if (posts.isEmpty()) {
+            System.out.println("No posts found for user: " + usernameOrEmail);
+            return List.of();
+        }
+
+        // Process each post to ensure data is correctly loaded
+        for (Post post : posts) {
+            try {
+                System.out.println("Processing post ID: " + post.getId() + ", content: " + post.getContent());
+                
+                // Initialize comments
+                if (post.getCommentList() != null) {
+                    post.setComments(new ArrayList<>(post.getCommentList()));
+                    System.out.println("  Comments: " + post.getCommentList().size());
+                } else {
+                    post.setComments(new ArrayList<>());
+                    System.out.println("  No comments");
+                }
+                
+                // Initialize likes count
+                if (post.getLikeList() != null) {
+                    post.setLikes(post.getLikeList().size());
+                    System.out.println("  Likes: " + post.getLikeList().size());
+                } else {
+                    post.setLikes(0);
+                    System.out.println("  No likes");
+                }
+                
+                // Set username from user if available
+                if (post.getUser() != null) {
+                    post.setUsername(post.getUser().getUsername());
+                    System.out.println("  Username: " + post.getUser().getUsername());
+                } else {
+                    System.out.println("  User is null!");
+                }
+                
+                // Convert media to Base64 if exists
+                if (post.getMediaUrl() != null) {
+                    System.out.println("  Converting media for post ID: " + post.getId() + 
+                                       ", media size: " + post.getMediaUrl().length + " bytes");
+                    post.convertMediaUrlToBase64();
+                    System.out.println("  Media URL base64 length: " + 
+                                      (post.getMediaUrlBase64() != null ? post.getMediaUrlBase64().length() : 0));
+                } else {
+                    System.out.println("  No media");
+                }
+            } catch (Exception e) {
+                System.err.println("Error processing post " + post.getId() + ": " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+
+        System.out.println("Returning " + posts.size() + " processed posts");
+        return posts;
     }
     public Post createPostForUser(Post post, String username) {
         UserInfo user = userRepository.findByEmail(username)
@@ -182,5 +262,31 @@ public class PostService {
     
             return post;
         });
+    }
+
+    public boolean toggleLike(Post post, UserInfo user) {
+        Optional<Like> existingLike = likeRepository.findByPostAndUser(post, user);
+        if (existingLike.isPresent()) {
+            likeRepository.delete(existingLike.get());
+            return false;
+        } else {
+            Like like = new Like();
+            like.setPost(post);
+            like.setUser(user);
+            likeRepository.save(like);
+            return true;
+        }
+    }
+
+    public Comment addComment(Post post, UserInfo user, String content) {
+        Comment comment = new Comment();
+        comment.setContent(content);
+        comment.setPost(post);
+        comment.setUser(user);
+        return commentRepository.save(comment);
+    }
+
+    public List<Comment> getComments(Post post) {
+        return commentRepository.findByPost(post);
     }
 }

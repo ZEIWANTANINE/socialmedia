@@ -4,6 +4,7 @@ import com.social.socialmedia.model.UserInfo;
 import com.social.socialmedia.model.UserSetting;
 import com.social.socialmedia.repository.UserRepository;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.context.annotation.Primary;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
+@Primary
 public class UserInfoService implements UserDetailsService {
 
     private final UserRepository repository;
@@ -65,5 +67,9 @@ public class UserInfoService implements UserDetailsService {
     
     public UserInfo findById(Long id) {
         return repository.findById(id.intValue()).orElse(null);
+    }
+
+    public UserInfo getUserByUsername(String username) {
+        return repository.findByUsername(username).orElse(null);
     }
 }

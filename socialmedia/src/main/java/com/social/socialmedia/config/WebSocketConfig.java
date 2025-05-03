@@ -5,6 +5,7 @@ import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
 
 @Configuration
 @EnableWebSocketMessageBroker
@@ -26,7 +27,20 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Endpoint mà client sẽ kết nối đến
         registry.addEndpoint("/ws")
-                .setAllowedOrigins("http://localhost:3000")
-                .withSockJS();
+                .setAllowedOrigins("*") // Cho phép tất cả các origins
+                .withSockJS()
+                .setSessionCookieNeeded(false); // Không yêu cầu cookie cho session
+                
+        // Thêm endpoint không dùng SockJS cho các client không hỗ trợ
+        registry.addEndpoint("/ws")
+                .setAllowedOrigins("*");
+    }
+    
+    @Override
+    public void configureWebSocketTransport(WebSocketTransportRegistration registration) {
+        // Tăng kích thước message cho phép (nếu cần gửi hình ảnh hoặc dữ liệu lớn)
+        registration.setMessageSizeLimit(128 * 1024); // 128KB
+        registration.setSendBufferSizeLimit(512 * 1024); // 512KB
+        registration.setSendTimeLimit(20000); // 20 seconds
     }
 } 

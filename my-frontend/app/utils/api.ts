@@ -4,11 +4,10 @@ export const apiEndpoints = {
   register: "/auth/register",
   login: "/auth/login",
   posts: "/posts",
+  userSettings: "/auth/usersettings",
   users: "/auth/users",
-  friendRequests: "/api/friendrequests",
-  friends: "/api/friends",
-  notifications: "/api/notifications",
-  ws: "/ws" // WebSocket endpoint
+  notifications: "/notifications",
+  ws: "/ws"
 };
 
 export default BASE_URL;

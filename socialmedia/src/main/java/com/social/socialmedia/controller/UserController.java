@@ -17,6 +17,9 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/auth")
@@ -115,5 +118,56 @@ public class UserController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(user);
+    }
+
+    @GetMapping("/users/search")
+    public ResponseEntity<List<Map<String, Object>>> searchUsers(@RequestParam(required = false) String username, Authentication authentication) {
+        List<UserInfo> allUsers = service.getAllUsers();
+        
+        // Lọc ra người dùng hiện tại
+        String currentUserEmail = authentication.getName();
+        UserInfo currentUser = service.findByEmail(currentUserEmail);
+        
+        List<UserInfo> filteredUsers = allUsers.stream()
+            .filter(user -> !user.getId().equals(currentUser.getId())) // Loại trừ người dùng hiện tại
+            .filter(user -> {
+                if (username != null && !username.isEmpty()) {
+                    return user.getUsername().toLowerCase().contains(username.toLowerCase());
+                }
+                return true;
+            })
+            .toList();
+        
+        // Chuyển đổi thành response format phù hợp
+        List<Map<String, Object>> result = filteredUsers.stream()
+            .map(user -> {
+                Map<String, Object> userMap = new HashMap<>();
+                userMap.put("id", user.getId());
+                userMap.put("username", user.getUsername());
+                userMap.put("profilePicture", user.getProfilePicture());
+                return userMap;
+            })
+            .collect(Collectors.toList());
+        
+        return ResponseEntity.ok(result);
+    }
+
+    // Endpoint để kiểm tra token hiện tại
+    @GetMapping("/check-auth")
+    public ResponseEntity<?> checkAuth(Authentication authentication) {
+        if (authentication != null) {
+            UserInfo user = service.findByEmail(authentication.getName());
+            if (user != null) {
+                return ResponseEntity.ok(Map.of(
+                    "isAuthenticated", true,
+                    "userId", user.getId(),
+                    "username", user.getUsername()
+                ));
+            }
+        }
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+            "isAuthenticated", false,
+            "message", "Invalid or expired token"
+        ));
     }
 }

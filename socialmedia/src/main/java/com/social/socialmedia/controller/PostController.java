@@ -9,83 +9,257 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import com.social.socialmedia.model.Post;
 import com.social.socialmedia.service.PostService;
+import com.social.socialmedia.service.LikeService;
+import com.social.socialmedia.service.CommentService;
+import com.social.socialmedia.model.UserInfo;
+import com.social.socialmedia.service.UserInfoService;
+import com.social.socialmedia.model.Comment;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.stream.Collectors;
+import java.util.ArrayList;
 
 @RestController
 @RequestMapping("/posts")
+@CrossOrigin(origins = "http://localhost:3000")
 public class PostController {
     @Autowired
     private PostService postService;
 
+    @Autowired
+    private LikeService likeService;
+
+    @Autowired
+    private CommentService commentService;
+
+    @Autowired
+    private UserInfoService userInfoService;
+
     @GetMapping
-    public ResponseEntity<List<Post>> getAllPosts() {
+    public ResponseEntity<List<Map<String, Object>>> getAllPosts() {
+        final UserInfo currentUser = getAuthenticatedUser();
+        
         List<Post> posts = postService.getAllPosts();
         
-        // Debug log: kiểm tra từng phần tử trong danh sách posts
-        System.out.println("=== Controller getAllPosts() ===");
-        System.out.println("Posts size from service: " + posts.size());
-        
-        // Debug chi tiết từng phần tử
-        for (int i = 0; i < Math.min(posts.size(), 5); i++) {
-            Object item = posts.get(i);
-            System.out.println("Item " + i + " class: " + item.getClass().getName());
-            if (item instanceof Post) {
-                Post post = (Post) item;
-                System.out.println("  - ID: " + post.getId() + ", Content: " + post.getContent());
-                System.out.println("  - Has mediaUrlBase64: " + (post.getMediaUrlBase64() != null));
-                System.out.println("  - User: " + (post.getUser() != null ? post.getUser().getUsername() : "null"));
-            } else {
-                System.out.println("  - Not a Post: " + item);
-            }
+        if (currentUser != null) {
+            posts.forEach(post -> {
+                boolean hasLiked = likeService.hasLiked(post, currentUser);
+                post.setHasLiked(hasLiked);
+            });
         }
         
-        // Lọc bỏ các phần tử không phải Post
-        List<Post> validPosts = posts.stream()
-            .filter(p -> p != null && p instanceof Post)
-            .collect(java.util.stream.Collectors.toList());
+        // Convert posts to simplified DTOs to avoid circular references
+        List<Map<String, Object>> postsDto = posts.stream().map(post -> {
+            Map<String, Object> postDto = new HashMap<>();
+            postDto.put("id", post.getId());
+            postDto.put("content", post.getContent());
+            postDto.put("username", post.getUsername());
+            postDto.put("createdAt", post.getCreatedAt());
+            postDto.put("likes", post.getLikes());
+            postDto.put("hasLiked", post.isHasLiked());
+            postDto.put("mediaType", post.getMediaType());
+            postDto.put("mediaUrlBase64", post.getMediaUrlBase64());
             
-        System.out.println("Valid posts size: " + validPosts.size());
+            // Convert comments to simplified DTOs
+            List<Map<String, Object>> commentsDto = post.getComments().stream().map(comment -> {
+                Map<String, Object> commentDto = new HashMap<>();
+                commentDto.put("id", comment.getId());
+                commentDto.put("content", comment.getContent());
+                commentDto.put("createdAt", comment.getCreatedAt());
+                
+                // Include minimal user info for the comment
+                Map<String, Object> userDto = new HashMap<>();
+                userDto.put("username", comment.getUser().getUsername());
+                commentDto.put("user", userDto);
+                
+                return commentDto;
+            }).collect(Collectors.toList());
+            
+            postDto.put("comments", commentsDto);
+            
+            return postDto;
+        }).collect(Collectors.toList());
+
+        return ResponseEntity.ok(postsDto);
+    }
+
+    private UserInfo getAuthenticatedUser() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.isAuthenticated()
+                    && !authentication.getName().equals("anonymousUser")) {
+                String username = authentication.getName();
+                return userInfoService.findByEmail(username);
+            }
+        } catch (Exception e) {
+            System.out.println("Error getting authentication: " + e.getMessage());
+        }
+        return null;
+    }
+
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getPostById(@PathVariable Long id) {
+        Optional<Post> postOpt = postService.getPostById(id);
         
-        return ResponseEntity.ok(validPosts);
+        if (postOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        Post post = postOpt.get();
+        
+        // Apply same hasLiked logic
+        final UserInfo currentUser = getAuthenticatedUser();
+        if (currentUser != null) {
+            boolean hasLiked = likeService.hasLiked(post, currentUser);
+            post.setHasLiked(hasLiked);
+        }
+        
+        // Convert to DTO to avoid circular references
+        Map<String, Object> postDto = new HashMap<>();
+        postDto.put("id", post.getId());
+        postDto.put("content", post.getContent());
+        postDto.put("username", post.getUsername());
+        postDto.put("createdAt", post.getCreatedAt());
+        postDto.put("likes", post.getLikes());
+        postDto.put("hasLiked", post.isHasLiked());
+        postDto.put("mediaType", post.getMediaType());
+        postDto.put("mediaUrlBase64", post.getMediaUrlBase64());
+        
+        // Convert comments to simplified DTOs
+        List<Map<String, Object>> commentsDto = post.getComments().stream().map(comment -> {
+            Map<String, Object> commentDto = new HashMap<>();
+            commentDto.put("id", comment.getId());
+            commentDto.put("content", comment.getContent());
+            commentDto.put("createdAt", comment.getCreatedAt());
+            
+            // Include minimal user info for the comment
+            Map<String, Object> userDto = new HashMap<>();
+            userDto.put("username", comment.getUser().getUsername());
+            commentDto.put("user", userDto);
+            
+            return commentDto;
+        }).collect(Collectors.toList());
+        
+        postDto.put("comments", commentsDto);
+        
+        return ResponseEntity.ok(postDto);
     }
 
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Post>> getPostsByUserId(@PathVariable Long userId) {
-        List<Post> posts = postService.getPostsByUserId(userId);
-        return ResponseEntity.ok(posts);
-    }
-
-    @GetMapping("/{postId}")
-    public ResponseEntity<Post> getPostById(@PathVariable Long postId) {
-        Optional<Post> post = postService.getPostById(postId);
-        return post.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
-    }
-
-    @DeleteMapping("/{postId}")
-    public ResponseEntity<Void> deletePost(@PathVariable Long postId) {
-        postService.deletePost(postId);
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletePost(@PathVariable Long id) {
+        Optional<Post> post = postService.getPostById(id);
+        if (post.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        postService.deletePost(id);
         return ResponseEntity.noContent().build();
     }
-    @GetMapping("/me")
-    public ResponseEntity<List<Post>> getMyPosts(Authentication authentication) {
-        String username = authentication.getName(); // Get the username from the JWT token
-        List<Post> posts = postService.getPostsByUsername(username);
-        return ResponseEntity.ok(posts);
+
+    @PostMapping
+    public ResponseEntity<?> createPost(
+            @RequestParam(required = false) String content,
+            @RequestParam(required = false) MultipartFile file) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        UserInfo user = userInfoService.findByEmail(username);
+
+        Post post = new Post();
+        post.setContent(content);
+        post.setUser(user);
+
+        if (file != null && !file.isEmpty()) {
+            post = postService.createPostWithMedia(content, file, username);
+        } else {
+            post = postService.createPostForUser(post, username);
+        }
+
+        // Convert to DTO to avoid circular references
+        Map<String, Object> postDto = new HashMap<>();
+        postDto.put("id", post.getId());
+        postDto.put("content", post.getContent());
+        postDto.put("username", post.getUsername());
+        postDto.put("createdAt", post.getCreatedAt());
+        postDto.put("likes", post.getLikes());
+        postDto.put("hasLiked", post.isHasLiked());
+        postDto.put("mediaType", post.getMediaType());
+        postDto.put("mediaUrlBase64", post.getMediaUrlBase64());
+        postDto.put("comments", new ArrayList<>());  // New post has no comments
+
+        return ResponseEntity.ok(postDto);
     }
 
-    @PostMapping(consumes = {"multipart/form-data"})
-public ResponseEntity<Post> createPost(
-    @RequestParam("content") String content,
-    @RequestParam(value = "file", required = false) MultipartFile file,
-    Authentication authentication
-) {
-    String username = authentication.getName(); // Lấy username từ JWT token
-    Post savedPost = postService.createPostWithMedia(content, file, username);
-    return ResponseEntity.ok(savedPost);
-}
+    @PostMapping("/{postId}/like")
+    public ResponseEntity<?> toggleLike(@PathVariable Long postId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        UserInfo user = userInfoService.findByEmail(username);
+        
+        Optional<Post> postOpt = postService.getPostById(postId);
+        if (postOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        Map<String, Object> result = likeService.toggleLike(postOpt.get(), user);
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/user/{username}")
+    public ResponseEntity<List<Map<String, Object>>> getPostsByUsername(@PathVariable String username) {
+        final UserInfo currentUser = getAuthenticatedUser();
+        
+        List<Post> posts = postService.getPostsByUsername(username);
+        
+        // Process posts to set hasLiked property if user is authenticated
+        if (currentUser != null) {
+            posts.forEach(post -> {
+                boolean hasLiked = likeService.hasLiked(post, currentUser);
+                post.setHasLiked(hasLiked);
+            });
+        }
+        
+        // Convert posts to simplified DTOs to avoid circular references
+        List<Map<String, Object>> postsDto = posts.stream().map(post -> {
+            Map<String, Object> postDto = new HashMap<>();
+            postDto.put("id", post.getId());
+            postDto.put("content", post.getContent());
+            postDto.put("username", post.getUsername());
+            postDto.put("createdAt", post.getCreatedAt());
+            postDto.put("likes", post.getLikes());
+            postDto.put("hasLiked", post.isHasLiked());
+            postDto.put("mediaType", post.getMediaType());
+            postDto.put("mediaUrlBase64", post.getMediaUrlBase64());
+            
+            // Convert comments to simplified DTOs
+            List<Map<String, Object>> commentsDto = post.getComments().stream().map(comment -> {
+                Map<String, Object> commentDto = new HashMap<>();
+                commentDto.put("id", comment.getId());
+                commentDto.put("content", comment.getContent());
+                commentDto.put("createdAt", comment.getCreatedAt());
+                
+                // Include minimal user info for the comment
+                Map<String, Object> userDto = new HashMap<>();
+                userDto.put("username", comment.getUser().getUsername());
+                commentDto.put("user", userDto);
+                
+                return commentDto;
+            }).collect(Collectors.toList());
+            
+            postDto.put("comments", commentsDto);
+            
+            return postDto;
+        }).collect(Collectors.toList());
+        
+        System.out.println("Returning " + postsDto.size() + " posts DTO objects for user: " + username);
+        return ResponseEntity.ok(postsDto);
+    }
 }

@@ -68,20 +68,20 @@ public class JwtService {
     }
 
     // Validate token against user details and expiration
-    public Boolean validateToken(String token, UserDetails userDetails) {
+    public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
     }
 
     // Check if token is expired
-    private Boolean isTokenExpired(String token) {
+    private boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }
 
     // Get signing key for JWT
     private Key getSignKey() {
         System.out.println("SECRET key used for signing789: " + secretKey);
-        byte[] keyBytes = io.jsonwebtoken.io.Decoders.BASE64.decode(secretKey); // Decode SECRET key từ Base64
-        return io.jsonwebtoken.security.Keys.hmacShaKeyFor(keyBytes); // Tạo Key từ SECRET key
+        byte[] keyBytes = Decoders.BASE64.decode(secretKey); // Decode SECRET key từ Base64
+        return Keys.hmacShaKeyFor(keyBytes); // Tạo Key từ SECRET key
     }
 }
