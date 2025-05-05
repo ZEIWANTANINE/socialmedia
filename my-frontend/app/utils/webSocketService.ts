@@ -36,10 +36,11 @@ class WebSocketService {
 
     console.log('Connecting to WebSocket with token...');
     
-    // Tạo URL với token trong query parameter để tránh lỗi CORS
-    const sockJsUrl = `${BASE_URL}${apiEndpoints.ws}?token=${encodeURIComponent(token)}`;
+    // Sử dụng URL không có token cho kết nối WebSocket
+    const sockJsUrl = `${BASE_URL}${apiEndpoints.ws}`;
+    console.log(`WebSocket connection URL: ${sockJsUrl}`);
     
-    // Sử dụng hàm mới để thiết lập WebSocket
+    // Sử dụng hàm mới để thiết lập WebSocket với token trong header
     this.setupWebSocket(sockJsUrl, token);
   }
 
@@ -54,6 +55,7 @@ class WebSocketService {
       this.client = new Client({
         webSocketFactory: () => {
           console.log('Creating SockJS instance with token (attempt #' + this.connectionAttempts + ')');
+          // Tạo SockJS instance mà không có token trong URL
           const sockjs = new SockJS(sockJsUrl);
           
           // Debug events

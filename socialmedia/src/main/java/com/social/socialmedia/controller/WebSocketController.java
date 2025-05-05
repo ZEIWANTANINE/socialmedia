@@ -8,8 +8,13 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Controller
+@Slf4j
 public class WebSocketController {
 
     private final SimpMessagingTemplate messagingTemplate;
@@ -26,7 +31,7 @@ public class WebSocketController {
     public void handlePing(@Payload Map<String, Object> message, Authentication authentication) {
         if (authentication != null) {
             String username = authentication.getName();
-            System.out.println("Received PING from " + username + " at " + message.get("timestamp"));
+            log.info("Received PING from {} at {}", username, message.get("timestamp"));
             
             // Tạo phản hồi PONG
             Map<String, Object> response = new HashMap<>();
@@ -41,9 +46,47 @@ public class WebSocketController {
                 response
             );
             
-            System.out.println("Sent PONG to " + username);
+            log.info("Sent PONG to {}", username);
         } else {
-            System.out.println("Authentication is null for ping message");
+            log.warn("Authentication is null for ping message");
+        }
+    }
+
+    /**
+     * Debug endpoint to test WebSocket connectivity
+     */
+    @GetMapping("/api/ws-test")
+    @ResponseBody
+    public Map<String, Object> testWebSocket(Authentication authentication) {
+        if (authentication != null) {
+            String username = authentication.getName();
+            log.info("Testing WebSocket for user: {}", username);
+            
+            // Create test notification
+            Map<String, Object> notification = new HashMap<>();
+            notification.put("type", "TEST_NOTIFICATION");
+            notification.put("timestamp", System.currentTimeMillis());
+            notification.put("message", "This is a test notification via WebSocket");
+            
+            // Send notification via WebSocket
+            messagingTemplate.convertAndSendToUser(
+                username,
+                "/queue/notifications",
+                notification
+            );
+            
+            log.info("Test notification sent to {}", username);
+            return Map.of(
+                "status", "success", 
+                "message", "Test notification sent via WebSocket",
+                "user", username
+            );
+        } else {
+            log.warn("Authentication required for WebSocket test");
+            return Map.of(
+                "status", "error", 
+                "message", "Authentication required"
+            );
         }
     }
 
@@ -62,6 +105,6 @@ public class WebSocketController {
             message
         );
         
-        System.out.println("Sent connection test to " + username);
+        log.info("Sent connection test to {}", username);
     }
 } 

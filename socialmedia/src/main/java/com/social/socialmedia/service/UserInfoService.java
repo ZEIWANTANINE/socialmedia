@@ -66,7 +66,16 @@ public class UserInfoService implements UserDetailsService {
     }
     
     public UserInfo findById(Long id) {
-        return repository.findById(id.intValue()).orElse(null);
+        if (id == null) {
+            return null;
+        }
+        try {
+            return repository.findById(id.intValue()).orElse(null);
+        } catch (Exception e) {
+            System.err.println("Error finding user by ID: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public UserInfo getUserByUsername(String username) {

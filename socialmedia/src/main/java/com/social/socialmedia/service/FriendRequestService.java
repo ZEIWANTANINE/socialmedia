@@ -7,8 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.social.socialmedia.model.FriendRequest;
-import com.social.socialmedia.model.UserInfo;
 import com.social.socialmedia.repository.FriendRequestRepository;
+
 @Service
 public class FriendRequestService {
     @Autowired
@@ -19,21 +19,15 @@ public class FriendRequestService {
     }
 
     public List<FriendRequest> getFriendRequestsBySenderId(Long senderId) {
-        UserInfo sender = new UserInfo();
-        sender.setId(senderId);
-        return friendRequestRepository.findBySenderId(sender);
+        return friendRequestRepository.findBySenderId(senderId);
     }
 
     public List<FriendRequest> getFriendRequestsByReceiverId(Long receiverId) {
-        UserInfo receiver = new UserInfo();
-        receiver.setId(receiverId);
-        return friendRequestRepository.findByReceiverId(receiver);
+        return friendRequestRepository.findByReceiverId(receiverId);
     }
     
     public List<FriendRequest> getPendingFriendRequestsByReceiverId(Long receiverId) {
-        UserInfo receiver = new UserInfo();
-        receiver.setId(receiverId);
-        return friendRequestRepository.findByReceiverIdAndStatus(receiver, "pending");
+        return friendRequestRepository.findByReceiverIdAndStatus(receiverId, "pending");
     }
 
     public Optional<FriendRequest> getFriendRequestById(Long friendRequestId) {

@@ -49,7 +49,8 @@ const FriendsPage: React.FC = () => {
     const fetchSentRequests = async () => {
       try {
         if (currentUserId) {
-          const response = await axiosInstance.get(`${apiEndpoints.friendRequests}/sender/${currentUserId}`);
+          const response = await axiosInstance.get(apiEndpoints.sentFriendRequests);
+          console.log("Sent friend requests:", response.data);
           // Lưu danh sách id của người nhận lời mời kết bạn
           const pendingIds = response.data.map((request: any) => request.receiver.id);
           setPendingRequests(pendingIds);
@@ -65,19 +66,48 @@ const FriendsPage: React.FC = () => {
 
   const sendFriendRequest = async (receiverId: number) => {
     try {
-      // Tạo request để gửi lời mời kết bạn
-      const response = await axiosInstance.post(apiEndpoints.friendRequests, {
-        sender: { id: parseInt(currentUserId || "0") },
-        receiver: { id: receiverId },
-        status: "pending"
-      });
+      console.log(`Sending friend request to user with ID: ${receiverId}`);
+      
+      // Đảm bảo token được thêm vào request
+      const token = localStorage.getItem('jwtToken');
+      if (!token) {
+        toast.error("Không có thông tin đăng nhập. Vui lòng đăng nhập lại.");
+        return;
+      }
+      
+      // Tạo request để gửi lời mời kết bạn với token cụ thể
+      const response = await axiosInstance.post(
+        `${apiEndpoints.friendRequests}/${receiverId}`,
+        {}, // empty body
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      console.log("Friend request response:", response.data);
       
       // Cập nhật UI để hiển thị đã gửi lời mời
       setPendingRequests([...pendingRequests, receiverId]);
       toast.success("Friend request sent successfully!");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error sending friend request:", error);
-      toast.error("Failed to send friend request. Please try again.");
+      
+      // Hiển thị thông báo lỗi chi tiết hơn
+      if (error.response) {
+        // Server trả về response với status code khác 2xx
+        console.error("Server response error:", error.response.data);
+        toast.error(`Failed to send friend request: ${error.response.data || error.response.statusText}`);
+      } else if (error.request) {
+        // Request đã được gửi nhưng không nhận được response
+        console.error("No response received:", error.request);
+        toast.error("Failed to send friend request: No response from server");
+      } else {
+        // Lỗi khi thiết lập request
+        toast.error(`Failed to send friend request: ${error.message}`);
+      }
     }
   };
 
@@ -94,24 +124,24 @@ const FriendsPage: React.FC = () => {
 
   return (
     <Layout userId={currentUserId || ""}>
-      <div className="p-4">
+    <div className="p-4">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold mb-4">Find Friends</h1>
           <Link href="/friend/requests" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
             Friend Requests
           </Link>
         </div>
-        <input
-          type="text"
+      <input
+        type="text"
           placeholder="Search users..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full p-2 border rounded mb-4"
-        />
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className="w-full p-2 border rounded mb-4"
+      />
         {loading ? (
           <p>Loading users...</p>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredUsers.map((user) => (
               <div key={user.id} className="p-4 border rounded shadow">
                 <div className="flex items-center mb-2">
@@ -140,8 +170,8 @@ const FriendsPage: React.FC = () => {
                     onClick={() => sendFriendRequest(user.id)}
                     className="w-full mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
                   >
-                    Add Friend
-                  </button>
+              Add Friend
+            </button>
                 )}
               </div>
             ))}

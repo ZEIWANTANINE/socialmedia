@@ -1,5 +1,6 @@
 package com.social.socialmedia.controller;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,13 +29,16 @@ import com.social.socialmedia.service.FriendRequestService;
 import com.social.socialmedia.service.FriendService;
 import com.social.socialmedia.service.UserInfoService;
 
+import lombok.extern.slf4j.Slf4j;
+
 @RestController
 @RequestMapping("/api/friendrequests")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "http://localhost:3000", allowedHeaders = "*", allowCredentials = "true")
+@Slf4j
 public class FriendRequestController {
     @Autowired
     private FriendRequestService friendRequestService;
-    
+
     @Autowired
     private UserInfoService userInfoService;
     
@@ -52,11 +56,12 @@ public class FriendRequestController {
     }
 
     // Get friend requests sent by a user
-    @GetMapping("/sent/{userId}")
+    @GetMapping("/sent")
     public ResponseEntity<List<Map<String, Object>>> getSentFriendRequests(Authentication authentication) {
         UserInfo currentUser = userInfoService.findByEmail(authentication.getName());
-        UserInfo sender = new UserInfo();
-        sender.setId(currentUser.getId());
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        }
         
         List<FriendRequest> requests = friendRequestService.getFriendRequestsBySenderId(currentUser.getId());
         List<Map<String, Object>> result = requests.stream()
@@ -116,39 +121,45 @@ public class FriendRequestController {
 
     // Send a friend request
     @PostMapping("/{receiverId}")
-    public ResponseEntity<?> createFriendRequest(@PathVariable Long receiverId, Authentication authentication) {
+    public ResponseEntity<?> sendFriendRequest(@PathVariable Long receiverId, Authentication authentication) {
         try {
-            // Log để debug
-            System.out.println("Đang xử lý yêu cầu kết bạn từ " + authentication.getName() + " đến người dùng ID: " + receiverId);
+            log.info("Processing friend request from {} to user ID: {}", authentication.getName(), receiverId);
             
             // Get current user
             UserInfo sender = userInfoService.findByEmail(authentication.getName());
-            UserInfo receiver = userInfoService.findById(receiverId);
-            
             if (sender == null) {
-                System.out.println("Người gửi không tìm thấy: " + authentication.getName());
+                log.error("Sender not found: {}", authentication.getName());
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found");
             }
             
+            log.info("Sender found: {} (ID: {})", sender.getUsername(), sender.getId());
+            
+            // Check if receiver ID is the same as sender ID
+            if (sender.getId().equals(receiverId)) {
+                log.error("Cannot send friend request to yourself");
+                return ResponseEntity.badRequest().body("Cannot send friend request to yourself");
+            }
+            
+            // Get receiver user
+            UserInfo receiver = userInfoService.findById(receiverId);
             if (receiver == null) {
-                System.out.println("Người nhận không tìm thấy: ID " + receiverId);
+                log.error("Receiver not found: ID {}", receiverId);
                 return ResponseEntity.badRequest().body("Receiver not found");
             }
             
-            System.out.println("Người gửi: " + sender.getUsername() + " (ID: " + sender.getId() + ")");
-            System.out.println("Người nhận: " + receiver.getUsername() + " (ID: " + receiver.getId() + ")");
+            log.info("Receiver found: {} (ID: {})", receiver.getUsername(), receiver.getId());
             
             // Check if already friends
             FriendId friendId1 = new FriendId();
             friendId1.setUser1Id(sender.getId());
-            friendId1.setUser2Id(receiver.getId());
+            friendId1.setUser2Id(receiverId);
             
             FriendId friendId2 = new FriendId();
-            friendId2.setUser1Id(receiver.getId());
+            friendId2.setUser1Id(receiverId);
             friendId2.setUser2Id(sender.getId());
             
             if (friendService.getFriendById(friendId1).isPresent() || friendService.getFriendById(friendId2).isPresent()) {
-                System.out.println("Đã là bạn bè");
+                log.info("Already friends");
                 return ResponseEntity.badRequest().body("Already friends");
             }
             
@@ -156,7 +167,7 @@ public class FriendRequestController {
             List<FriendRequest> existingRequests = friendRequestService.getFriendRequestsBySenderId(sender.getId());
             for (FriendRequest req : existingRequests) {
                 if (req.getReceiver().getId().equals(receiverId) && req.getStatus().equals("pending")) {
-                    System.out.println("Lời mời kết bạn đã tồn tại, ID: " + req.getId());
+                    log.info("Friend request already exists, ID: {}", req.getId());
                     return ResponseEntity.badRequest().body("Friend request already sent");
                 }
             }
@@ -168,7 +179,7 @@ public class FriendRequestController {
             friendRequest.setStatus("pending");
             
             FriendRequest savedRequest = friendRequestService.saveFriendRequest(friendRequest);
-            System.out.println("Đã lưu lời mời kết bạn, ID: " + savedRequest.getId());
+            log.info("Saved friend request, ID: {}", savedRequest.getId());
             
             // Send notification via WebSocket
             try {
@@ -178,11 +189,10 @@ public class FriendRequestController {
                 notification.put("senderId", sender.getId());
                 notification.put("senderUsername", sender.getUsername());
                 notification.put("senderProfilePicture", sender.getProfilePicture());
-                notification.put("message", sender.getUsername() + " đã gửi cho bạn một lời mời kết bạn");
+                notification.put("message", sender.getUsername() + " sent you a friend request");
                 notification.put("timestamp", System.currentTimeMillis());
                 
-                System.out.println("Gửi thông báo qua WebSocket đến: " + receiver.getEmail());
-                System.out.println("Nội dung thông báo: " + notification);
+                log.info("Sending WebSocket notification to: {}", receiver.getEmail());
                 
                 messagingTemplate.convertAndSendToUser(
                     receiver.getEmail(),
@@ -190,13 +200,12 @@ public class FriendRequestController {
                     notification
                 );
                 
-                System.out.println("Đã gửi thông báo thành công");
+                log.info("Notification sent successfully");
             } catch (Exception e) {
-                System.err.println("Lỗi khi gửi thông báo WebSocket: " + e.getMessage());
-                e.printStackTrace();
+                log.error("Error sending WebSocket notification: {}", e.getMessage(), e);
             }
             
-            // Trả về thông tin chi tiết cho frontend
+            // Return detailed response for frontend
             Map<String, Object> response = new HashMap<>();
             response.put("id", savedRequest.getId());
             response.put("status", savedRequest.getStatus());
@@ -209,8 +218,7 @@ public class FriendRequestController {
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            System.err.println("Lỗi khi xử lý yêu cầu kết bạn: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Error processing friend request: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body("Error processing friend request: " + e.getMessage());
         }

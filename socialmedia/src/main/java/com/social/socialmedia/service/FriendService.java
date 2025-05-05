@@ -27,7 +27,19 @@ public class FriendService {
     }
 
     public Optional<Friend> getFriendById(FriendId friendId) {
-        return friendRepository.findById(friendId);
+        if (friendId == null || friendId.getUser1Id() == null || friendId.getUser2Id() == null) {
+            System.err.println("Invalid FriendId: " + (friendId == null ? "null" : 
+                "user1Id=" + friendId.getUser1Id() + ", user2Id=" + friendId.getUser2Id()));
+            return Optional.empty();
+        }
+        
+        try {
+            return friendRepository.findById(friendId);
+        } catch (Exception e) {
+            System.err.println("Error finding friend by ID: " + e.getMessage());
+            e.printStackTrace();
+            return Optional.empty();
+        }
     }
 
     public Friend saveFriend(Friend friend) {

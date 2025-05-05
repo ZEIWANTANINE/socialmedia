@@ -5,8 +5,8 @@ import com.social.socialmedia.model.FriendRequest;
 import com.social.socialmedia.model.UserInfo;
 
 public interface FriendRequestRepository extends JpaRepository<FriendRequest, Long> {
-    List<FriendRequest> findByReceiverId(UserInfo receiver);
-    List<FriendRequest> findBySenderId(UserInfo sender);
-    List<FriendRequest> findByReceiverIdAndStatus(UserInfo receiver, String status);
-    List<FriendRequest> findBySenderIdAndStatus(UserInfo sender, String status);
+    List<FriendRequest> findByReceiverId(Long receiverId);
+    List<FriendRequest> findBySenderId(Long senderId);
+    List<FriendRequest> findByReceiverIdAndStatus(Long receiverId, String status);
+    List<FriendRequest> findBySenderIdAndStatus(Long senderId, String status);
 }

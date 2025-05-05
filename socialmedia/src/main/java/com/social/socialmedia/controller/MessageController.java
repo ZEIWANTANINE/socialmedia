@@ -31,7 +31,7 @@ import com.social.socialmedia.service.UserInfoService;
 
 @RestController
 @RequestMapping("/api/messages")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "http://localhost:3000", allowedHeaders = "*", allowCredentials = "true")
 public class MessageController {
     @Autowired
     private MessageService messageService;
@@ -127,69 +127,106 @@ public class MessageController {
     // Get messages between current user and another user
     @GetMapping("/chat/{userId}")
     public ResponseEntity<?> getChat(@PathVariable Long userId, Authentication authentication) {
-        UserInfo currentUser = userInfoService.findByEmail(authentication.getName());
-        UserInfo otherUser = userInfoService.findById(userId);
-        
-        if (otherUser == null) {
-            return ResponseEntity.badRequest().body("User not found");
-        }
-        
-        // Check if they are friends
-        FriendId friendId1 = new FriendId();
-        friendId1.setUser1Id(currentUser.getId());
-        friendId1.setUser2Id(userId);
-        
-        FriendId friendId2 = new FriendId();
-        friendId2.setUser1Id(userId);
-        friendId2.setUser2Id(currentUser.getId());
-        
-        if (friendService.getFriendById(friendId1).isEmpty() && friendService.getFriendById(friendId2).isEmpty()) {
-            return ResponseEntity.badRequest().body("You are not friends with this user");
-        }
-        
-        // Get all messages between users
-        List<Message> sentMessages = messageService.getMessagesBySenderIdAndReceiverId(currentUser.getId(), userId);
-        List<Message> receivedMessages = messageService.getMessagesBySenderIdAndReceiverId(userId, currentUser.getId());
-        
-        // Mark received messages as read
-        for (Message message : receivedMessages) {
-            if (!message.getIsRead()) {
-                message.setIsRead(true);
-                messageService.saveMessage(message);
+        try {
+            UserInfo currentUser = userInfoService.findByEmail(authentication.getName());
+            if (currentUser == null) {
+                return ResponseEntity.badRequest().body("Current user not found");
             }
-        }
-        
-        // Combine all messages
-        List<Message> allMessages = new ArrayList<>();
-        allMessages.addAll(sentMessages);
-        allMessages.addAll(receivedMessages);
-        
-        // Sort by timestamp (oldest first)
-        allMessages.sort((m1, m2) -> m1.getCreatedAt().compareTo(m2.getCreatedAt()));
-        
-        // Convert to DTO
-        List<Map<String, Object>> messagesDto = allMessages.stream()
-            .map(message -> {
-                Map<String, Object> messageDto = new HashMap<>();
-                messageDto.put("id", message.getId());
-                messageDto.put("content", message.getContent());
-                messageDto.put("createdAt", message.getCreatedAt());
-                messageDto.put("isRead", message.getIsRead());
-                messageDto.put("isFromCurrentUser", message.getSender().getId().equals(currentUser.getId()));
+            
+            // Xác nhận rằng userId là số hợp lệ và khác currentUserId
+            if (userId == null || userId.equals(currentUser.getId())) {
+                return ResponseEntity.badRequest().body("Invalid user ID");
+            }
+            
+            UserInfo otherUser = userInfoService.findById(userId);
+            if (otherUser == null) {
+                return ResponseEntity.badRequest().body("User not found");
+            }
+            
+            // Log để debug
+            System.out.println("Getting chat between " + currentUser.getUsername() + " (ID: " + currentUser.getId() + ") and " + otherUser.getUsername() + " (ID: " + otherUser.getId() + ")");
+            
+            // Check if they are friends - sử dụng try-catch để xử lý lỗi nếu có
+            boolean areFriends = false;
+            try {
+                FriendId friendId1 = new FriendId();
+                friendId1.setUser1Id(currentUser.getId());
+                friendId1.setUser2Id(userId);
                 
-                return messageDto;
-            })
-            .collect(Collectors.toList());
-        
-        Map<String, Object> response = new HashMap<>();
-        response.put("messages", messagesDto);
-        response.put("user", Map.of(
-            "id", otherUser.getId(),
-            "username", otherUser.getUsername(),
-            "profilePicture", otherUser.getProfilePicture()
-        ));
-        
-        return ResponseEntity.ok(response);
+                FriendId friendId2 = new FriendId();
+                friendId2.setUser1Id(userId);
+                friendId2.setUser2Id(currentUser.getId());
+                
+                areFriends = friendService.getFriendById(friendId1).isPresent() || 
+                            friendService.getFriendById(friendId2).isPresent();
+                            
+                if (!areFriends) {
+                    System.out.println("Users are not friends. Current user: " + currentUser.getId() + ", Other user: " + userId);
+                    return ResponseEntity.badRequest().body("You are not friends with this user");
+                }
+            } catch (Exception e) {
+                System.err.println("Error checking friendship: " + e.getMessage());
+                e.printStackTrace();
+                return ResponseEntity.badRequest().body("Error checking friendship: " + e.getMessage());
+            }
+            
+            // Get all messages between users
+            List<Message> sentMessages;
+            List<Message> receivedMessages;
+            
+            try {
+                sentMessages = messageService.getMessagesBySenderIdAndReceiverId(currentUser.getId(), userId);
+                receivedMessages = messageService.getMessagesBySenderIdAndReceiverId(userId, currentUser.getId());
+            } catch (Exception e) {
+                System.err.println("Error fetching messages: " + e.getMessage());
+                e.printStackTrace();
+                return ResponseEntity.badRequest().body("Error fetching messages: " + e.getMessage());
+            }
+            
+            // Mark received messages as read
+            for (Message message : receivedMessages) {
+                if (!message.getIsRead()) {
+                    message.setIsRead(true);
+                    messageService.saveMessage(message);
+                }
+            }
+            
+            // Combine all messages
+            List<Message> allMessages = new ArrayList<>();
+            allMessages.addAll(sentMessages);
+            allMessages.addAll(receivedMessages);
+            
+            // Sort by timestamp (oldest first)
+            allMessages.sort((m1, m2) -> m1.getCreatedAt().compareTo(m2.getCreatedAt()));
+            
+            // Convert to DTO
+            List<Map<String, Object>> messagesDto = allMessages.stream()
+                .map(message -> {
+                    Map<String, Object> messageDto = new HashMap<>();
+                    messageDto.put("id", message.getId());
+                    messageDto.put("content", message.getContent());
+                    messageDto.put("createdAt", message.getCreatedAt());
+                    messageDto.put("isRead", message.getIsRead());
+                    messageDto.put("isFromCurrentUser", message.getSender().getId().equals(currentUser.getId()));
+                    
+                    return messageDto;
+                })
+                .collect(Collectors.toList());
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("messages", messagesDto);
+            response.put("user", Map.of(
+                "id", otherUser.getId(),
+                "username", otherUser.getUsername(),
+                "profilePicture", otherUser.getProfilePicture()
+            ));
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            System.err.println("Error getting chat: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body("Error getting chat: " + e.getMessage());
+        }
     }
 
     // Send a message

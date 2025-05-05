@@ -123,8 +123,8 @@ public class NotificationController {
         
         Optional<Notification> notificationOpt = notificationService.getNotificationById(notificationId);
         if (notificationOpt.isPresent() && notificationOpt.get().getUser().getId().equals(user.getId())) {
-            notificationService.deleteNotification(notificationId);
-            return ResponseEntity.noContent().build();
+        notificationService.deleteNotification(notificationId);
+        return ResponseEntity.noContent().build();
         }
         
         return ResponseEntity.notFound().build();

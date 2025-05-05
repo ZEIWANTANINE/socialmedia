@@ -45,13 +45,17 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints
                         .requestMatchers("/auth/welcome", "/auth/register", "/auth/login").permitAll()
-                        // WebSocket endpoints
-                        .requestMatchers("/ws/**").permitAll()
+                        // WebSocket endpoints - make sure these are completely unrestricted
+                        .requestMatchers("/ws/**", "/ws").permitAll()
+                        .requestMatchers("/topic/**", "/queue/**", "/user/**").permitAll()
                         // API endpoints that require authentication
                         .requestMatchers("/posts/**").hasAnyAuthority("ROLE_USER")
                         .requestMatchers("/api/friendrequests/**").hasAnyAuthority("ROLE_USER")
                         .requestMatchers("/api/friends/**").hasAnyAuthority("ROLE_USER")
                         .requestMatchers("/api/messages/**").hasAnyAuthority("ROLE_USER")
+                        .requestMatchers("/api/notifications/**").hasAnyAuthority("ROLE_USER")
+                        .requestMatchers("/api/deleted-messages/**").hasAnyAuthority("ROLE_USER")
+                        .requestMatchers("/auth/check-auth").permitAll()
                         .requestMatchers("/auth/users/**").hasAnyAuthority("ROLE_USER", "ROLE_ADMIN")
                         .requestMatchers("/auth/user/**").hasAnyAuthority("ROLE_USER")
                         .requestMatchers("/auth/admin/**").hasAnyAuthority("ROLE_ADMIN")
