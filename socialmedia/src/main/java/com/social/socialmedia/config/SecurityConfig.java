@@ -46,8 +46,11 @@ public class SecurityConfig {
                         // Public endpoints
                         .requestMatchers("/auth/welcome", "/auth/register", "/auth/login").permitAll()
                         // WebSocket endpoints - make sure these are completely unrestricted
-                        .requestMatchers("/ws/**", "/ws").permitAll()
+                        // Add specific SockJS endpoints to ensure they're properly permitted
+                        .requestMatchers("/ws/**", "/ws", "/ws/info/**", "/ws/info").permitAll()
                         .requestMatchers("/topic/**", "/queue/**", "/user/**").permitAll()
+                        // Debug endpoints for WebSocket
+                        .requestMatchers("/api/ws-debug/**", "/api/ws-test").permitAll()
                         // API endpoints that require authentication
                         .requestMatchers("/posts/**").hasAnyAuthority("ROLE_USER")
                         .requestMatchers("/api/friendrequests/**").hasAnyAuthority("ROLE_USER")
@@ -93,9 +96,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000", "http://localhost:6789"));
+        configuration.setAllowedOriginPatterns(Collections.singletonList("*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "X-Authorization", "Content-Type", "Accept", "X-Requested-With"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "X-Authorization", "Content-Type", "Accept", 
+                                                     "X-Requested-With", "x-requested-with", "x-socket-version", "x-client-id"));
         configuration.setExposedHeaders(Arrays.asList("Authorization", "X-Authorization"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);

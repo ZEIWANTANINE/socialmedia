@@ -29,6 +29,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
+        // Skip WebSocket endpoints to avoid authentication issues
+        String path = request.getRequestURI();
+        if (path.startsWith("/ws")) {
+            // Skip authentication for WebSocket paths
+            filterChain.doFilter(request, response);
+            return;
+        }
+        
         try {
             String token = jwtTokenProvider.resolveToken(request);
             
@@ -47,8 +55,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         } catch (Exception e) {
             logger.error("Cannot set user authentication: {}", e);
-            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            response.getWriter().write("Invalid token");
+            // Không đặt trạng thái 403 để tránh chặn các yêu cầu hợp lệ không cần xác thực
+            filterChain.doFilter(request, response);
         }
     }
 }

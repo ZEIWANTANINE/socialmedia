@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SockJS Info Endpoint Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .log {
+            height: 300px;
+            overflow-y: auto;
+            background-color: #f5f5f5;
+            padding: 10px;
+            border: 1px solid #ddd;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SockJS Info Endpoint Test</h1>
+        <p>This page specifically tests the SockJS info endpoint that's returning 403 Forbidden</p>
+        
+        <div class="input-group">
+            <label for="token">JWT Token:</label>
+            <input type="text" id="token" placeholder="Paste your JWT token here">
+        </div>
+        
+        <div class="input-group">
+            <label for="baseUrl">Server URL:</label>
+            <input type="text" id="baseUrl" value="http://localhost:6789" placeholder="e.g., http://localhost:6789">
+        </div>
+        
+        <div>
+            <button id="testInfo">Test /ws/info endpoint</button>
+            <button id="testDirectConnection">Test Direct WebSocket</button>
+            <button id="debugEndpoint">Call Debug Endpoint</button>
+            <button id="clearLog">Clear Log</button>
+        </div>
+        
+        <h3>Connection Log:</h3>
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        const logElement = document.getElementById('log');
+        
+        function appendLog(message, className = '') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.classList.add(className);
+            entry.textContent = `[${timestamp}] ${message}`;
+            logElement.appendChild(entry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        // Function to test the /ws/info endpoint directly
+        async function testInfoEndpoint() {
+            const token = document.getElementById('token').value.trim();
+            const baseUrl = document.getElementById('baseUrl').value.trim();
+            
+            if (!baseUrl) {
+                appendLog('Error: Server URL is required', 'error');
+                return;
+            }
+            
+            try {
+                // Clean token (remove "Bearer " if present)
+                const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
+                
+                // Create a unique transport ID like SockJS does
+                const transportId = Math.floor(Math.random() * 999999);
+                
+                // Build the URL that SockJS would use for the info endpoint
+                const infoUrl = `${baseUrl}/ws/info?t=${Date.now()}`;
+                
+                appendLog(`Testing info endpoint: ${infoUrl}`, 'info');
+                
+                // Make a direct fetch request to the endpoint
+                const response = await fetch(infoUrl, {
+                    method: 'GET',
+                    headers: token ? {
+                        'Authorization': `Bearer ${cleanToken}`,
+                        'X-Authorization': `Bearer ${cleanToken}`
+                    } : {}
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    appendLog(`Success! Info endpoint responded with: ${JSON.stringify(data)}`, 'success');
+                } else {
+                    appendLog(`Error: Info endpoint returned ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                appendLog(`Error testing info endpoint: ${error.message}`, 'error');
+            }
+        }
+        
+        // Function to test a direct WebSocket connection
+        function testDirectWebSocket() {
+            const token = document.getElementById('token').value.trim();
+            const baseUrl = document.getElementById('baseUrl').value.trim();
+            
+            if (!baseUrl) {
+                appendLog('Error: Server URL is required', 'error');
+                return;
+            }
+            
+            try {
+                // Clean token (remove "Bearer " if present)
+                const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
+                
+                // Create the WebSocket URL with token
+                const wsUrl = baseUrl.replace('http:', 'ws:').replace('https:', 'wss:');
+                const socketUrl = token ? 
+                    `${wsUrl}/ws?token=${encodeURIComponent(cleanToken)}&access_token=${encodeURIComponent(cleanToken)}` :
+                    `${wsUrl}/ws`;
+                
+                appendLog(`Trying direct WebSocket connection to: ${socketUrl}`, 'info');
+                
+                // Create WebSocket without SockJS
+                const socket = new WebSocket(socketUrl);
+                
+                socket.onopen = function() {
+                    appendLog('Direct WebSocket connection opened successfully!', 'success');
+                };
+                
+                socket.onclose = function(event) {
+                    appendLog(`Direct WebSocket connection closed: Code=${event.code}, Reason=${event.reason || 'No reason provided'}`, 
+                              event.wasClean ? 'success' : 'error');
+                };
+                
+                socket.onerror = function(error) {
+                    appendLog(`Direct WebSocket error: ${error.message || 'Unknown error'}`, 'error');
+                };
+                
+                // Close the socket after 5 seconds
+                setTimeout(() => {
+                    if (socket.readyState === WebSocket.OPEN) {
+                        appendLog('Closing WebSocket connection after 5 seconds', 'info');
+                        socket.close();
+                    }
+                }, 5000);
+            } catch (error) {
+                appendLog(`Error creating WebSocket: ${error.message}`, 'error');
+            }
+        }
+        
+        // Function to call the debug endpoint
+        async function callDebugEndpoint() {
+            const token = document.getElementById('token').value.trim();
+            const baseUrl = document.getElementById('baseUrl').value.trim();
+            
+            if (!baseUrl) {
+                appendLog('Error: Server URL is required', 'error');
+                return;
+            }
+            
+            try {
+                // Clean token (remove "Bearer " if present)
+                const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
+                
+                const debugUrl = `${baseUrl}/api/ws-debug/sockjs-debug${token ? '?token=' + encodeURIComponent(cleanToken) : ''}`;
+                
+                appendLog(`Calling debug endpoint: ${debugUrl}`, 'info');
+                
+                // Make a request to our new debug endpoint
+                const response = await fetch(debugUrl);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    appendLog(`Debug endpoint response: ${JSON.stringify(data, null, 2)}`, 'success');
+                    
+                    // Display troubleshooting info
+                    if (data.troubleshooting) {
+                        appendLog('Troubleshooting tips:', 'info');
+                        data.troubleshooting.forEach(tip => {
+                            appendLog(`- ${tip}`, 'info');
+                        });
+                    }
+                } else {
+                    appendLog(`Error calling debug endpoint: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                appendLog(`Error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Attach event listeners
+        document.getElementById('testInfo').addEventListener('click', testInfoEndpoint);
+        document.getElementById('testDirectConnection').addEventListener('click', testDirectWebSocket);
+        document.getElementById('debugEndpoint').addEventListener('click', callDebugEndpoint);
+        document.getElementById('clearLog').addEventListener('click', () => logElement.innerHTML = '');
+        
+        // Try to load token from localStorage if available
+        if (typeof localStorage !== 'undefined' && localStorage.getItem('jwtToken')) {
+            document.getElementById('token').value = localStorage.getItem('jwtToken');
+            appendLog('Loaded token from localStorage');
+        }
+    </script>
+</body>
+</html> 

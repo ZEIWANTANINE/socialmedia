@@ -30,6 +30,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
+        // Skip WebSocket endpoints to avoid authentication issues
+        String path = request.getRequestURI();
+        if (path.startsWith("/ws")) {
+            // Skip authentication for WebSocket paths
+            filterChain.doFilter(request, response);
+            return;
+        }
+        
         String jwt = null;
         String userEmail = null;
         
@@ -50,6 +58,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // Nếu vẫn không có token, kiểm tra trong URL parameter
         if (jwt == null) {
             jwt = request.getParameter("token");
+        }
+        
+        // Try access_token parameter as well
+        if (jwt == null) {
+            jwt = request.getParameter("access_token");
         }
         
         // Nếu không tìm thấy token, tiếp tục chuỗi filter

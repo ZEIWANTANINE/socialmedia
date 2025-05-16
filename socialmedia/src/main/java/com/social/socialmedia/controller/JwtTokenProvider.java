@@ -69,10 +69,30 @@ public class JwtTokenProvider {
     }
 
     public String resolveToken(HttpServletRequest request) {
+        // Kiểm tra trong header Authorization
         String bearerToken = request.getHeader("Authorization");
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
         }
+        
+        // Kiểm tra trong header X-Authorization
+        bearerToken = request.getHeader("X-Authorization");
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        }
+        
+        // Kiểm tra trong URL parameter "token"
+        String tokenParam = request.getParameter("token");
+        if (tokenParam != null && !tokenParam.isEmpty()) {
+            return tokenParam;
+        }
+        
+        // Kiểm tra trong URL parameter "access_token"
+        tokenParam = request.getParameter("access_token");
+        if (tokenParam != null && !tokenParam.isEmpty()) {
+            return tokenParam;
+        }
+        
         return null;
     }
 }

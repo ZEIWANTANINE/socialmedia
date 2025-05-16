@@ -1,35 +1,33 @@
 import axios from 'axios';
 import BASE_URL from './api';
 
-// Tạo instance của axios với URL cơ sở
+// Create an axios instance with base URL
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // Quan trọng để gửi cookie
+  withCredentials: true, // Important for sending cookies
 });
 
-// Thêm interceptor để tự động thêm token vào mọi request
+// Add interceptor to automatically add token to every request
 axiosInstance.interceptors.request.use(
   config => {
-    // Lấy token từ localStorage
+    // Get token from localStorage
     const token = localStorage.getItem('jwtToken');
     
-    // Debug
+    // Debug log for API requests
     console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`);
     
-    // Thêm token vào header nếu có
+    // Add token to header if available
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
-      // Thêm token vào query parameter cho một số endpoint cụ thể nếu cần
-      if (config.url?.includes('/ws') || config.url?.includes('/messages/chat')) {
-        // Đối với URL là một string
-        if (typeof config.url === 'string') {
-          const separator = config.url.includes('?') ? '&' : '?';
-          config.url = `${config.url}${separator}token=${encodeURIComponent(token)}`;
-        }
+      
+      // For WebSocket endpoints, we'll let the WebSocketService handle the auth
+      // rather than modifying the URL here to avoid conflicts
+      if (config.url?.includes('/ws')) {
+        console.log('WebSocket request detected - token will be handled by WebSocketService');
       }
     } else {
       console.warn(`No token found for request to ${config.url}`);
@@ -38,41 +36,41 @@ axiosInstance.interceptors.request.use(
     return config;
   },
   error => {
-    // Xử lý lỗi khi tạo request
+    // Handle request creation errors
     console.error('Error creating request:', error);
     return Promise.reject(error);
   }
 );
 
-// Thêm interceptor để xử lý response
+// Add interceptor to handle responses
 axiosInstance.interceptors.response.use(
   response => {
-    // Xử lý response thành công
+    // Handle successful responses
     console.log(`[API Response] ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`);
     return response;
   },
   error => {
-    // Xử lý response lỗi
+    // Handle error responses
     if (error.response) {
       console.error(`[API Error] ${error.response.status} ${error.config?.method?.toUpperCase()} ${error.config?.url}:`, error.response.data);
       
       if (error.response.status === 401 || error.response.status === 403) {
-        // Token hết hạn hoặc không hợp lệ
+        // Token expired or invalid
         console.error('Authentication error:', error.response.data);
         
-        // Xóa token và chuyển hướng đến trang đăng nhập nếu đang ở trình duyệt
+        // Remove token and redirect to login page if in browser
         if (typeof window !== 'undefined') {
-          // Kiểm tra xem người dùng đã đăng nhập hay chưa
+          // Check if user is logged in
           const isLoggedIn = localStorage.getItem('jwtToken') !== null;
           
           if (isLoggedIn) {
             console.warn('Token is invalid or expired. Redirecting to login page...');
             
-            // Xóa token và thông tin người dùng
+            // Remove token and user info
             localStorage.removeItem('jwtToken');
             localStorage.removeItem('userId');
             
-            // Chuyển hướng đến trang đăng nhập nếu không phải đang ở trang đăng nhập
+            // Redirect to login page if not already there
             if (!window.location.pathname.includes('/login')) {
               window.location.href = '/login';
             }
@@ -80,10 +78,10 @@ axiosInstance.interceptors.response.use(
         }
       }
     } else if (error.request) {
-      // Không nhận được response
+      // No response received
       console.error(`[API Network Error] ${error.config?.method?.toUpperCase()} ${error.config?.url}:`, error.message);
     } else {
-      // Lỗi khác
+      // Other errors
       console.error(`[API Error] ${error.message}`);
     }
     

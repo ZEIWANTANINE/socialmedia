@@ -22,6 +22,7 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
                                   WebSocketHandler wsHandler, Map<String, Object> attributes) throws Exception {
         
         logger.info("Processing WebSocket handshake from: {}", request.getRemoteAddress());
+        logger.info("Request URI: {}", request.getURI());
         
         if (request instanceof ServletServerHttpRequest) {
             ServletServerHttpRequest servletRequest = (ServletServerHttpRequest) request;
@@ -35,6 +36,7 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
                 String token = authHeader.substring(7);
                 logger.info("Found token in Authorization header");
                 attributes.put("token", token);
+                attributes.put("access_token", token); // Add both for compatibility
                 return true;
             }
             
@@ -43,19 +45,38 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
                 String token = xAuthHeader.substring(7);
                 logger.info("Found token in X-Authorization header");
                 attributes.put("token", token);
+                attributes.put("access_token", token); // Add both for compatibility
                 return true;
             }
             
             // Kiểm tra query parameters
             if (query != null && !query.isEmpty()) {
+                logger.info("Query string received: {}", query);
+                
                 Map<String, String> queryParams = UriComponentsBuilder.fromUriString("?" + query)
                                                   .build().getQueryParams().toSingleValueMap();
                 
+                // Log all query parameters for debugging
+                logger.info("All query parameters: {}", queryParams);
+                
+                // Try both "token" and "access_token" parameters
                 String token = queryParams.get("token");
                 
+                if (token == null || token.isEmpty()) {
+                    // If "token" parameter is not found, try "access_token"
+                    token = queryParams.get("access_token");
+                    if (token != null && !token.isEmpty()) {
+                        logger.info("Found token in URL parameters (access_token)");
+                    }
+                } else {
+                    logger.info("Found token in URL parameters (token)");
+                }
+                
                 if (token != null && !token.isEmpty()) {
-                    logger.info("Found token in URL parameters");
+                    // Store token in both attributes for compatibility
                     attributes.put("token", token);
+                    attributes.put("access_token", token);
+                    logger.info("Successfully stored token in session attributes");
                 } else {
                     logger.warn("No token found in URL parameters");
                 }
@@ -64,7 +85,8 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
             }
         }
         
-        // Luôn cho phép kết nối, xác thực sẽ được xử lý sau này
+        // Always return true to allow the connection
+        logger.info("WebSocket handshake completed, allowing connection");
         return true;
     }
 

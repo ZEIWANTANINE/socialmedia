@@ -128,6 +128,7 @@ public class MessageController {
     @GetMapping("/chat/{userId}")
     public ResponseEntity<?> getChat(@PathVariable Long userId, Authentication authentication) {
         try {
+            System.out.println("DEBUG getChat: userId=" + userId);
             UserInfo currentUser = userInfoService.findByEmail(authentication.getName());
             if (currentUser == null) {
                 return ResponseEntity.badRequest().body("Current user not found");
@@ -139,6 +140,7 @@ public class MessageController {
             }
             
             UserInfo otherUser = userInfoService.findById(userId);
+            System.out.println("DEBUG getChat: otherUser=" + otherUser);
             if (otherUser == null) {
                 return ResponseEntity.badRequest().body("User not found");
             }
@@ -146,28 +148,36 @@ public class MessageController {
             // Log để debug
             System.out.println("Getting chat between " + currentUser.getUsername() + " (ID: " + currentUser.getId() + ") and " + otherUser.getUsername() + " (ID: " + otherUser.getId() + ")");
             
-            // Check if they are friends - sử dụng try-catch để xử lý lỗi nếu có
+            // Kiểm tra bạn bè trực tiếp từ database
+            List<Friend> friendsAsUser1 = friendService.getFriendsByUser1Id(currentUser.getId());
+            List<Friend> friendsAsUser2 = friendService.getFriendsByUser2Id(currentUser.getId());
+            
             boolean areFriends = false;
-            try {
-                FriendId friendId1 = new FriendId();
-                friendId1.setUser1Id(currentUser.getId());
-                friendId1.setUser2Id(userId);
-                
-                FriendId friendId2 = new FriendId();
-                friendId2.setUser1Id(userId);
-                friendId2.setUser2Id(currentUser.getId());
-                
-                areFriends = friendService.getFriendById(friendId1).isPresent() || 
-                            friendService.getFriendById(friendId2).isPresent();
-                            
-                if (!areFriends) {
-                    System.out.println("Users are not friends. Current user: " + currentUser.getId() + ", Other user: " + userId);
-                    return ResponseEntity.badRequest().body("You are not friends with this user");
+            
+            // Kiểm tra trong danh sách bạn bè
+            for (Friend friend : friendsAsUser1) {
+                if (friend.getUser2().getId().equals(userId)) {
+                    areFriends = true;
+                    System.out.println("Found friendship: user1=" + currentUser.getId() + ", user2=" + userId);
+                    break;
                 }
-            } catch (Exception e) {
-                System.err.println("Error checking friendship: " + e.getMessage());
-                e.printStackTrace();
-                return ResponseEntity.badRequest().body("Error checking friendship: " + e.getMessage());
+            }
+            
+            if (!areFriends) {
+                for (Friend friend : friendsAsUser2) {
+                    if (friend.getUser1().getId().equals(userId)) {
+                        areFriends = true;
+                        System.out.println("Found friendship: user1=" + userId + ", user2=" + currentUser.getId());
+                        break;
+                    }
+                }
+            }
+            
+            System.out.println("Friendship check result: " + areFriends);
+            
+            if (!areFriends) {
+                System.out.println("Users are not friends. Current user: " + currentUser.getId() + ", Other user: " + userId);
+                return ResponseEntity.status(403).body("You are not friends with this user");
             }
             
             // Get all messages between users
@@ -177,6 +187,24 @@ public class MessageController {
             try {
                 sentMessages = messageService.getMessagesBySenderIdAndReceiverId(currentUser.getId(), userId);
                 receivedMessages = messageService.getMessagesBySenderIdAndReceiverId(userId, currentUser.getId());
+                
+                System.out.println("Found " + sentMessages.size() + " sent messages and " + receivedMessages.size() + " received messages");
+                
+                // Nếu không có tin nhắn nào, đây là cuộc trò chuyện mới
+                if (sentMessages.isEmpty() && receivedMessages.isEmpty()) {
+                    System.out.println("No existing chat found. Creating a new conversation between users " + currentUser.getId() + " and " + userId);
+                    
+                    // Không cần tạo tin nhắn, chỉ trả về danh sách trống
+                    Map<String, Object> emptyResponse = new HashMap<>();
+                    emptyResponse.put("messages", new ArrayList<>());
+                    emptyResponse.put("user", Map.of(
+                        "id", otherUser.getId(),
+                        "username", otherUser.getUsername(),
+                        "profilePicture", otherUser.getProfilePicture() != null ? otherUser.getProfilePicture() : ""
+                    ));
+                    
+                    return ResponseEntity.ok(emptyResponse);
+                }
             } catch (Exception e) {
                 System.err.println("Error fetching messages: " + e.getMessage());
                 e.printStackTrace();
@@ -218,14 +246,14 @@ public class MessageController {
             response.put("user", Map.of(
                 "id", otherUser.getId(),
                 "username", otherUser.getUsername(),
-                "profilePicture", otherUser.getProfilePicture()
+                "profilePicture", otherUser.getProfilePicture() != null ? otherUser.getProfilePicture() : ""
             ));
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             System.err.println("Error getting chat: " + e.getMessage());
             e.printStackTrace();
-            return ResponseEntity.badRequest().body("Error getting chat: " + e.getMessage());
+            return ResponseEntity.status(500).body("Error getting chat: " + e.getMessage());
         }
     }
 
@@ -239,6 +267,8 @@ public class MessageController {
             return ResponseEntity.badRequest().body("Message content cannot be empty");
         }
         
+        System.out.println("Sending message to userId: " + receiverId);
+        
         UserInfo sender = userInfoService.findByEmail(authentication.getName());
         UserInfo receiver = userInfoService.findById(receiverId);
         
@@ -246,7 +276,7 @@ public class MessageController {
             return ResponseEntity.badRequest().body("Receiver not found");
         }
         
-        // Check if they are friends
+        // Kiểm tra xem họ có phải là bạn bè không
         FriendId friendId1 = new FriendId();
         friendId1.setUser1Id(sender.getId());
         friendId1.setUser2Id(receiverId);
@@ -255,11 +285,20 @@ public class MessageController {
         friendId2.setUser1Id(receiverId);
         friendId2.setUser2Id(sender.getId());
         
-        if (friendService.getFriendById(friendId1).isEmpty() && friendService.getFriendById(friendId2).isEmpty()) {
+        // Log để debug
+        System.out.println("Checking friendship between " + sender.getId() + " and " + receiverId);
+        boolean areFriends = friendService.getFriendById(friendId1).isPresent() || 
+                           friendService.getFriendById(friendId2).isPresent();
+        
+        if (!areFriends) {
+            System.out.println("Users are not friends. Sender: " + sender.getId() + ", Receiver: " + receiverId);
             return ResponseEntity.badRequest().body("You are not friends with this user");
         }
         
-        // Create and save the message
+        // Tiếp tục tạo và lưu tin nhắn
+        System.out.println("Creating new message from " + sender.getId() + " to " + receiverId);
+        
+        // Tạo và lưu tin nhắn
         Message message = new Message();
         message.setSender(sender);
         message.setReceiver(receiver);
@@ -268,7 +307,7 @@ public class MessageController {
         
         Message savedMessage = messageService.saveMessage(message);
         
-        // Create DTO for response
+        // Tạo DTO để trả về
         Map<String, Object> messageDto = new HashMap<>();
         messageDto.put("id", savedMessage.getId());
         messageDto.put("content", savedMessage.getContent());
@@ -278,18 +317,25 @@ public class MessageController {
         messageDto.put("senderId", sender.getId());
         messageDto.put("senderUsername", sender.getUsername());
         
-        // Send notification via WebSocket
-        Map<String, Object> notification = new HashMap<>();
-        notification.put("type", "NEW_MESSAGE");
-        notification.put("message", messageDto);
-        notification.put("senderId", sender.getId());
-        notification.put("senderUsername", sender.getUsername());
-        
-        messagingTemplate.convertAndSendToUser(
-            receiver.getEmail(),
-            "/queue/notifications",
-            notification
-        );
+        // Gửi thông báo qua WebSocket nếu có
+        try {
+            Map<String, Object> notification = new HashMap<>();
+            notification.put("type", "NEW_MESSAGE");
+            notification.put("message", messageDto);
+            notification.put("senderId", sender.getId());
+            notification.put("senderUsername", sender.getUsername());
+            
+            messagingTemplate.convertAndSendToUser(
+                receiver.getEmail(),
+                "/queue/notifications",
+                notification
+            );
+            
+            System.out.println("WebSocket notification sent to: " + receiver.getEmail());
+        } catch (Exception e) {
+            System.err.println("Error sending WebSocket notification: " + e.getMessage());
+            // Tin nhắn vẫn được lưu, không cần trả về lỗi
+        }
         
         return ResponseEntity.ok(messageDto);
     }
@@ -371,5 +417,65 @@ public class MessageController {
         }
         
         return ResponseEntity.ok(Map.of("count", totalUnreadCount));
+    }
+
+    /**
+     * API để tạo đoạn chat mới giữa hai người dùng
+     * Được gọi khi muốn tạo đoạn chat mới mà không cần gửi tin nhắn
+     */
+    @PostMapping("/create-chat/{userId}")
+    public ResponseEntity<?> createChat(@PathVariable Long userId, Authentication authentication) {
+        try {
+            UserInfo currentUser = userInfoService.findByEmail(authentication.getName());
+            if (currentUser == null) {
+                return ResponseEntity.badRequest().body("Không tìm thấy thông tin người dùng hiện tại");
+            }
+            
+            // Xác nhận rằng userId hợp lệ
+            if (userId == null || userId.equals(currentUser.getId())) {
+                return ResponseEntity.badRequest().body("ID người dùng không hợp lệ");
+            }
+            
+            UserInfo otherUser = userInfoService.findById(userId);
+            if (otherUser == null) {
+                return ResponseEntity.badRequest().body("Không tìm thấy người dùng với ID: " + userId);
+            }
+            
+            System.out.println("Creating new chat between " + currentUser.getUsername() + " (ID: " + currentUser.getId() + ") and " + otherUser.getUsername() + " (ID: " + otherUser.getId() + ")");
+            
+            // Kiểm tra xem họ có phải là bạn bè không
+            FriendId friendId1 = new FriendId();
+            friendId1.setUser1Id(currentUser.getId());
+            friendId1.setUser2Id(userId);
+            
+            FriendId friendId2 = new FriendId();
+            friendId2.setUser1Id(userId);
+            friendId2.setUser2Id(currentUser.getId());
+            
+            boolean areFriends = friendService.getFriendById(friendId1).isPresent() || 
+                              friendService.getFriendById(friendId2).isPresent();
+            
+            if (!areFriends) {
+                System.out.println("Users are not friends. Current user: " + currentUser.getId() + ", Other user: " + userId);
+                return ResponseEntity.status(403).body("Bạn chưa kết bạn với người dùng này");
+            }
+            
+            // Các đoạn chat thực tế được tạo khi tin nhắn đầu tiên được gửi
+            // Chúng ta chỉ cần trả về thông tin người dùng để hiển thị UI
+            Map<String, Object> response = new HashMap<>();
+            response.put("messages", new ArrayList<>()); // Danh sách tin nhắn trống
+            response.put("user", Map.of(
+                "id", otherUser.getId(),
+                "username", otherUser.getUsername(),
+                "profilePicture", otherUser.getProfilePicture() != null ? otherUser.getProfilePicture() : ""
+            ));
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Lỗi khi tạo đoạn chat: " + 
+                (e.getMessage() != null ? e.getMessage() : "Không xác định"));
+        }
     }
 }

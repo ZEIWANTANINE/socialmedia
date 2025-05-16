@@ -65,11 +65,31 @@ const ChatPage: React.FC = () => {
       webSocketService.connect(token);
     }
 
+    // Debug: Check friendships for current user
+    if (storedUserId) {
+      checkFriendships(storedUserId);
+    }
+
     return () => {
       // Optional: Disconnect WebSocket when component unmounts
       // webSocketService.disconnect();
     };
   }, [router]);
+
+  // Debug function to check if friendships are properly set up
+  const checkFriendships = async (userId: string) => {
+    try {
+      // Fetch friend list to debug
+      const response = await axiosInstance.get(`/api/friends/user1/${userId}`);
+      console.log("Friends for user1:", response.data);
+      
+      // Also check user2 friends
+      const response2 = await axiosInstance.get(`/api/friends/user2/${userId}`);
+      console.log("Friends for user2:", response2.data);
+    } catch (error) {
+      console.error("Error checking friendships:", error);
+    }
+  };
 
   // Load conversations
   useEffect(() => {
@@ -91,7 +111,20 @@ const ChatPage: React.FC = () => {
   // Load messages when selected friend changes
   useEffect(() => {
     if (selectedFriend) {
-      loadChatData(selectedFriend.id.toString());
+      // First verify friendship status directly before trying to load chat
+      verifyFriendship(selectedFriend.id.toString())
+        .then(isFriend => {
+          if (isFriend) {
+            loadChatDataFixed(selectedFriend.id.toString());
+          } else {
+            toast.error("You are not friends with this user. Please add them as a friend first.");
+            setSelectedFriend(null);
+          }
+        })
+        .catch(err => {
+          console.error("Error verifying friendship:", err);
+          loadChatDataFixed(selectedFriend.id.toString());
+        });
     }
   }, [selectedFriend]);
 
@@ -162,7 +195,36 @@ const ChatPage: React.FC = () => {
     }
   };
 
-  const loadChatData = async (friendId: string) => {
+  // Helper function to make API calls with correct token handling
+  const fixedApiCall = async (url: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem('jwtToken');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+    
+    // Ensure headers are properly set
+    const headers = new Headers(options.headers || {});
+    headers.set('Authorization', `Bearer ${token}`);
+    headers.set('Content-Type', 'application/json');
+    
+    // Make the request with proper credentials
+    const response = await fetch(url, {
+      ...options,
+      headers,
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`API error (${response.status}): ${errorText}`);
+      throw new Error(`API error: ${errorText || response.statusText}`);
+    }
+    
+    return response.json();
+  };
+  
+  // Fixed function to load chat data with proper token handling
+  const loadChatDataFixed = async (friendId: string) => {
     try {
       console.log(`Loading chat data for friend ID: ${friendId}`);
       
@@ -171,23 +233,28 @@ const ChatPage: React.FC = () => {
         toast.error('Cannot load chat: Invalid friend ID');
         return;
       }
-
-      const token = localStorage.getItem('jwtToken');
-      if (!token) {
-        console.error('No authentication token found');
-        toast.error('Authentication required');
-        router.push('/login');
+      
+      // First check if the users are friends using the conversations endpoint
+      const conversations = await fixedApiCall('http://localhost:6789/api/messages/conversations');
+      console.log("Available conversations:", conversations);
+      
+      // Check if friend is in conversations list
+      const friendConversation = conversations.find((c: any) => c.userId && c.userId.toString() === friendId);
+      
+      if (!friendConversation) {
+        console.warn(`Friend ${friendId} not found in conversations list`);
+        toast.error('You need to add this user as a friend first.');
+        setSelectedFriend(null);
         return;
       }
-
-      const response = await axiosInstance.get(apiEndpoints.messageChat(friendId), {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
       
-      if (response.data && response.data.messages) {
-        setMessages(response.data.messages);
+      // Load chat data using the correct API endpoint
+      const chatData = await fixedApiCall(`http://localhost:6789/api/messages/chat/${friendId}`);
+      console.log("Chat data loaded successfully:", chatData);
+      
+      // Process the response
+      if (chatData && chatData.messages) {
+        setMessages(chatData.messages);
         
         // Update URL with selected friend ID
         const url = new URL(window.location.href);
@@ -196,28 +263,74 @@ const ChatPage: React.FC = () => {
         
         // Reset unread count in conversations list
         setConversations(prev => prev.map(conv => {
-          if (conv.id.toString() === friendId) {
+          if (conv.id && conv.id.toString() === friendId) {
             return { ...conv, unreadCount: 0 };
           }
           return conv;
         }));
       } else {
-        console.error('Invalid response format:', response.data);
+        console.error('Invalid response format:', chatData);
         toast.error('Error loading messages: Invalid data format');
       }
     } catch (error: any) {
-      console.error("Error loading chat:", error);
+      console.error("Error in loadChatDataFixed:", error);
+      toast.error(error.message || "Failed to load chat messages");
+    }
+  };
+
+  // Function to directly verify friendship
+  const verifyFriendship = async (friendId: string): Promise<boolean> => {
+    try {
+      const currentUserId = localStorage.getItem('userId');
+      if (!currentUserId) return false;
       
-      // Hiển thị thông báo lỗi chi tiết
-      if (error.response) {
-        console.error(`Server error (${error.response.status}):`, error.response.data);
-        toast.error(`Error: ${error.response.data || 'Server error'}`);
-      } else if (error.request) {
-        console.error('No response from server');
-        toast.error('Network error: No response from server');
-      } else {
-        toast.error(`Error: ${error.message || 'Unknown error'}`);
+      console.log(`Verifying friendship between user ${currentUserId} and ${friendId}`);
+      
+      // Specifically check if you can successfully get conversations,
+      // which might indicate the backend friendship is properly set up
+      try {
+        const conversationsResponse = await axiosInstance.get('/api/messages/conversations');
+        const conversations = conversationsResponse.data || [];
+        
+        // Check if the friend is in the conversations list
+        const friendInConversations = conversations.some((conv: any) => 
+          conv.userId && conv.userId.toString() === friendId
+        );
+        
+        if (friendInConversations) {
+          console.log("Friend found in conversations list - friendship verified indirectly");
+          return true;
+        }
+      } catch (convError) {
+        console.error("Error checking conversations:", convError);
       }
+      
+      // Direct friendship checks as backup
+      // Check as user1
+      const response1 = await axiosInstance.get(`/api/friends/user1/${currentUserId}`);
+      const friends1 = response1.data || [];
+      const isFriend1 = friends1.some((f: any) => f.user2?.id.toString() === friendId);
+      
+      if (isFriend1) {
+        console.log("Friendship verified: Current user is user1");
+        return true;
+      }
+      
+      // Check as user2
+      const response2 = await axiosInstance.get(`/api/friends/user2/${currentUserId}`);
+      const friends2 = response2.data || [];
+      const isFriend2 = friends2.some((f: any) => f.user1?.id.toString() === friendId);
+      
+      if (isFriend2) {
+        console.log("Friendship verified: Current user is user2");
+        return true;
+      }
+      
+      console.log("No friendship found between these users");
+      return false;
+    } catch (error) {
+      console.error("Error verifying friendship:", error);
+      return false; // Assume not friends on error
     }
   };
 
@@ -239,6 +352,60 @@ const ChatPage: React.FC = () => {
       toast.error("Failed to send message");
     }
   };
+
+  useEffect(() => {
+    // Direct test of the API endpoint to debug the issue
+    const testApiEndpoint = async () => {
+      const token = localStorage.getItem('jwtToken');
+      if (!token) return;
+      
+      // Remove Bearer prefix if present
+      const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
+      
+      try {
+        // Test the endpoint with direct fetch
+        const response = await fetch('http://localhost:6789/api/messages/conversations', {
+          headers: {
+            'Authorization': `Bearer ${cleanToken}`
+          },
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log("Conversations API test successful:", data);
+          
+          // If we can fetch conversations, let's try a direct chat message fetch
+          if (data.length > 0 && data[0].userId) {
+            const userId = data[0].userId;
+            console.log(`Testing direct chat API with user ${userId}`);
+            
+            const chatResponse = await fetch(`http://localhost:6789/api/messages/chat/${userId}`, {
+              headers: {
+                'Authorization': `Bearer ${cleanToken}`
+              },
+              credentials: 'include'
+            });
+            
+            if (chatResponse.ok) {
+              console.log("Chat API test successful:", await chatResponse.json());
+            } else {
+              console.error("Chat API test failed:", await chatResponse.text());
+            }
+          }
+        } else {
+          console.error("Conversations API test failed:", await response.text());
+        }
+      } catch (error) {
+        console.error("API test error:", error);
+      }
+    };
+    
+    testApiEndpoint();
+  }, []);
+
+  // Add a fallback function with the original name to avoid breaking existing code
+  const loadChatData = loadChatDataFixed;
 
   if (!currentUserId) {
     return (

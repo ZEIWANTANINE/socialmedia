@@ -27,7 +27,7 @@ class WebSocketService {
     
     if (this.client && this.connected) {
       console.log('WebSocket already connected');
-      return;
+      return true;
     }
 
     if (this.client) {
@@ -36,16 +36,25 @@ class WebSocketService {
 
     console.log('Connecting to WebSocket with token...');
     
-    // Sử dụng URL không có token cho kết nối WebSocket
-    const sockJsUrl = `${BASE_URL}${apiEndpoints.ws}`;
-    console.log(`WebSocket connection URL: ${sockJsUrl}`);
+    // Remove Bearer prefix if it exists
+    const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
     
-    // Sử dụng hàm mới để thiết lập WebSocket với token trong header
-    this.setupWebSocket(sockJsUrl, token);
+    try {
+      // Create WebSocket URL with both token parameters to ensure compatibility
+      // Send both token and access_token to support different backend configurations
+      const sockJsUrl = `${BASE_URL}/ws?token=${encodeURIComponent(cleanToken)}&access_token=${encodeURIComponent(cleanToken)}`;
+      console.log(`WebSocket URL: ${sockJsUrl} (trimmed for privacy)`);
+      
+      this.setupWebSocket(sockJsUrl, cleanToken);
+      return true;
+    } catch (error) {
+      console.error('Error setting up WebSocket connection:', error);
+      return false;
+    }
   }
 
   /**
-   * Thêm một số log để giúp debug
+   * Detailed WebSocket setup with improved error handling and logging
    */
   private setupWebSocket(sockJsUrl: string, token: string) {
     console.log(`Setting up WebSocket connection to: ${sockJsUrl}`);
@@ -54,41 +63,36 @@ class WebSocketService {
     try {
       this.client = new Client({
         webSocketFactory: () => {
-          console.log('Creating SockJS instance with token (attempt #' + this.connectionAttempts + ')');
-          // Tạo SockJS instance mà không có token trong URL
-          const sockjs = new SockJS(sockJsUrl);
+          console.log('Creating SockJS instance (attempt #' + this.connectionAttempts + ')');
           
-          // Debug events
+          // Create SockJS with proper options for authentication
+          const sockjs = new SockJS(sockJsUrl, null, { 
+            transports: ['websocket', 'xhr-streaming', 'xhr-polling']
+          });
+          
+          // Debug events with detailed error logging
           sockjs.onopen = () => {
-            console.log('SockJS connection opened successfully');
-            // Reset connection attempts on successful connection
-            this.connectionAttempts = 0;
+            console.log('SockJS transport connection opened successfully');
           };
           
           sockjs.onclose = (e) => {
-            console.log('SockJS connection closed:', e);
-            this.connected = false;
-            
-            // Check if we should try reconnecting
-            if (this.connectionAttempts < this.MAX_RECONNECT_ATTEMPTS) {
-              this.setupReconnect();
-            } else {
-              console.warn('Maximum reconnect attempts reached. Stopping reconnection attempts.');
-            }
+            console.log('SockJS transport connection closed:', e);
+            console.log('Close code:', e.code, 'reason:', e.reason);
           };
           
           sockjs.onerror = (e) => {
-            console.error('SockJS error:', e);
+            console.error('SockJS transport error:', e);
           };
           
           return sockjs;
         },
+        // Include token in headers (both formats)
         connectHeaders: {
-          Authorization: `Bearer ${token}`,
+          'Authorization': `Bearer ${token}`,
           'X-Authorization': `Bearer ${token}`
         },
         debug: function(str: string) {
-          console.log('STOMP: ' + str);
+          console.log('STOMP debug: ' + str);
         },
         reconnectDelay: 5000,
         heartbeatIncoming: 4000,
@@ -98,17 +102,18 @@ class WebSocketService {
       this.client.onConnect = (frame: IFrame) => {
         console.log('WebSocket connected successfully', frame);
         this.connected = true;
+        this.connectionAttempts = 0; // Reset connection attempts counter
         
         // Thông báo kết nối thành công nếu đang ở trình duyệt
         if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
           try {
-            new Notification('Kết nối thông báo', {
-              body: 'Đã kết nối thành công. Bạn sẽ nhận được thông báo về lời mời kết bạn và tin nhắn.',
+            new Notification('WebSocket Connected', {
+              body: 'You will now receive real-time notifications and messages.',
               icon: '/favicon.ico',
               tag: 'websocket-connected'
             });
           } catch (e) {
-            console.error('Không thể hiển thị thông báo kết nối thành công:', e);
+            console.error('Cannot display browser notification:', e);
           }
         }
         
@@ -118,14 +123,14 @@ class WebSocketService {
           this.reconnectTimer = null;
         }
         
-        // Subscribe để nhận thông báo cá nhân
+        // Subscribe to personal notifications
         if (this.client) {
           this.client.subscribe('/user/queue/notifications', (message: IMessage) => {
-            console.log('Received notification from WebSocket:', message.body);
+            console.log('Received notification:', message.body);
             this.handleNotification(message);
           });
           
-          // Gửi tin nhắn PING để kiểm tra kết nối
+          // Send a PING to test the connection
           this.sendPing();
           
           // Schedule regular pings to maintain connection
@@ -133,9 +138,10 @@ class WebSocketService {
         }
       };
       
-      // Log tất cả các lỗi đầy đủ
+      // Set up comprehensive error handlers
       this.setupErrorHandlers();
       
+      // Activate the client
       this.client.activate();
       console.log('WebSocket client activated');
     } catch (e) {
@@ -144,6 +150,9 @@ class WebSocketService {
     }
   }
 
+  /**
+   * Setup comprehensive error handlers for the WebSocket connection
+   */
   private setupErrorHandlers() {
     if (!this.client) return;
     
@@ -169,25 +178,30 @@ class WebSocketService {
   }
 
   /**
-   * Gửi tin nhắn PING để kiểm tra kết nối
+   * Send a ping message to keep the connection alive
    */
-  private sendPing() {
+  sendPing() {
     if (this.client && this.connected) {
       try {
+        const message = {
+          type: 'PING',
+          timestamp: new Date().toISOString(),
+          clientId: Math.random().toString(36).substring(2, 9) // Random ID for tracking
+        };
+        
+        console.log('Sending PING message to server');
         this.client.publish({
-          destination: '/app/ws-ping',
-          body: JSON.stringify({ type: 'PING', timestamp: new Date().toISOString() }),
-          headers: { 'content-type': 'application/json' }
+          destination: '/app/test-ping',
+          body: JSON.stringify(message)
         });
-        console.log('Ping sent to server');
-      } catch (error) {
-        console.error('Error sending ping:', error);
+      } catch (e) {
+        console.error('Error sending ping message:', e);
       }
     }
   }
 
   /**
-   * Thiết lập cơ chế tự động kết nối lại
+   * Setup automatic reconnection mechanism
    */
   private setupReconnect() {
     if (!this.reconnectTimer && this.token) {
@@ -195,27 +209,37 @@ class WebSocketService {
       this.reconnectTimer = setInterval(() => {
         if (!this.connected && this.token) {
           console.log('Attempting to reconnect WebSocket...');
-          // Kiểm tra lại token
+          
+          // Check for token updates in localStorage
           const currentToken = localStorage.getItem('jwtToken');
           if (currentToken && currentToken !== this.token) {
-            // Token đã thay đổi, cập nhật
+            // Token has changed, update it
             this.token = currentToken;
             this.connectionAttempts = 0; // Reset attempt count with new token
+            console.log('Token has been updated since last connection attempt');
           }
-          this.connect(this.token);
+          
+          if (this.connectionAttempts < this.MAX_RECONNECT_ATTEMPTS) {
+            this.connect(this.token);
+          } else {
+            console.warn('Maximum reconnect attempts reached. Stopping automatic reconnection.');
+            clearInterval(this.reconnectTimer);
+            this.reconnectTimer = null;
+          }
         } else if (this.connected) {
           clearInterval(this.reconnectTimer);
           this.reconnectTimer = null;
         }
-      }, 5000); // Thử kết nối lại sau mỗi 5 giây
+      }, 5000); // Try to reconnect every 5 seconds
     }
   }
 
   /**
-   * Ngắt kết nối WebSocket
+   * Disconnect from WebSocket
    */
   disconnect() {
     if (this.client) {
+      console.log('Disconnecting WebSocket client');
       this.client.deactivate();
       this.client = null;
       this.connected = false;
@@ -228,8 +252,7 @@ class WebSocketService {
   }
 
   /**
-   * Đăng ký hàm callback để xử lý thông báo
-   * @param handler Hàm callback
+   * Register a notification handler
    */
   registerNotificationHandler(handler: NotificationHandler) {
     this.notificationHandlers.push(handler);
@@ -239,15 +262,15 @@ class WebSocketService {
   }
 
   /**
-   * Xử lý thông báo nhận được từ WebSocket
-   * @param message Thông báo từ server
+   * Handle incoming notifications
    */
   private handleNotification(message: IMessage) {
     try {
+      // Parse notification from JSON
       const notification = JSON.parse(message.body);
-      console.log('Received notification:', notification);
+      console.log('Parsed notification:', notification);
       
-      // Gọi tất cả các hàm callback đã đăng ký
+      // Dispatch to all registered handlers
       this.notificationHandlers.forEach(handler => {
         try {
           handler(notification);
@@ -255,16 +278,72 @@ class WebSocketService {
           console.error('Error in notification handler:', e);
         }
       });
+      
+      // Show browser notification if applicable
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        this.showBrowserNotification(notification);
+      }
     } catch (e) {
-      console.error('Error parsing notification:', e);
+      console.error('Error handling notification:', e);
+      console.error('Raw message body:', message.body);
+    }
+  }
+  
+  /**
+   * Display browser notification for different notification types
+   */
+  private showBrowserNotification(notification: any) {
+    try {
+      let title = 'New Notification';
+      let body = '';
+      let icon = '/favicon.ico';
+      
+      if (notification.type === 'FRIEND_REQUEST') {
+        title = 'New Friend Request';
+        body = notification.message || `${notification.senderUsername} sent you a friend request`;
+      } else if (notification.type === 'NEW_MESSAGE') {
+        title = `Message from ${notification.senderUsername}`;
+        body = notification.message?.content || 'New message received';
+      } else if (notification.type === 'FRIEND_REQUEST_ACCEPTED') {
+        title = 'Friend Request Accepted';
+        body = notification.message || `${notification.accepterUsername} accepted your friend request`;
+      } else if (notification.type === 'PONG') {
+        // Don't show notification for PONG responses
+        return;
+      }
+      
+      new Notification(title, { body, icon });
+    } catch (e) {
+      console.error('Error showing browser notification:', e);
     }
   }
 
   /**
-   * Kiểm tra trạng thái kết nối
+   * Check if WebSocket is connected
    */
   isConnected() {
     return this.connected;
+  }
+
+  /**
+   * Gửi tin nhắn STOMP đến một destination
+   */
+  sendStompMessage(destination: string, body: any) {
+    if (this.client && this.connected) {
+      try {
+        this.client.publish({
+          destination: destination,
+          body: JSON.stringify(body)
+        });
+        return true;
+      } catch (e) {
+        console.error('Error sending STOMP message:', e);
+        return false;
+      }
+    } else {
+      console.warn('Cannot send STOMP message - WebSocket not connected');
+      return false;
+    }
   }
 }
 

@@ -50,15 +50,21 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Endpoint mà client sẽ kết nối đến
         registry.addEndpoint("/ws")
-                .setAllowedOrigins("*") // Cho phép tất cả các origins
+                .setAllowedOriginPatterns("*")
                 .addInterceptors(handshakeInterceptor)
                 .withSockJS()
+                .setWebSocketEnabled(true)
+                .setHeartbeatTime(25000)
+                .setDisconnectDelay(5000)
+                .setClientLibraryUrl("https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js")
                 .setSessionCookieNeeded(false); // Không yêu cầu cookie cho session
                 
         // Thêm endpoint không dùng SockJS cho các client không hỗ trợ
         registry.addEndpoint("/ws")
-                .setAllowedOrigins("*")
+                .setAllowedOriginPatterns("*")
                 .addInterceptors(handshakeInterceptor);
+        
+        log.info("WebSocket endpoints registered");
     }
     
     @Override
@@ -101,9 +107,15 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                     // Finally try URL parameters
                     if (token == null) {
                         var sessionAttributes = accessor.getSessionAttributes();
-                        if (sessionAttributes != null && sessionAttributes.containsKey("token")) {
-                            token = (String) sessionAttributes.get("token");
-                            log.debug("Found token in session attributes");
+                        if (sessionAttributes != null) {
+                            // Try both "token" and "access_token" attributes
+                            if (sessionAttributes.containsKey("token")) {
+                                token = (String) sessionAttributes.get("token");
+                                log.debug("Found token in session attributes (token)");
+                            } else if (sessionAttributes.containsKey("access_token")) {
+                                token = (String) sessionAttributes.get("access_token");
+                                log.debug("Found token in session attributes (access_token)");
+                            }
                         }
                     }
                     
